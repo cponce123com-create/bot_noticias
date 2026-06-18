@@ -36,10 +36,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: RENDER_EXTERNAL_URL
-        fromService:
-          name: noticiando-pe-api
-          type: web
-          property: url
+        value: https://noticiando-pe-api.onrender.com
 
   # ── Cron Job (Keep Alive + Scraping cada 15 min) ──
   - type: cron
