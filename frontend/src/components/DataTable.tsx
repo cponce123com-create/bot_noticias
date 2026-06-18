@@ -143,7 +143,7 @@ export default function DataTable<T>({
                     key={col.key}
                     className={cn('px-4 py-3 text-sm text-gray-700', col.className)}
                   >
-                    {col.render ? col.render(item) : String(item[col.key] ?? '')}
+                    {col.render ? col.render(item) : String((item as any)[col.key] ?? '')}
                   </td>
                 ))}
               </tr>
