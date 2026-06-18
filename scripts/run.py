@@ -178,15 +178,46 @@ def scrape_source(feed_url: str, max_items: int = 20) -> List[Dict[str, Any]]:
                 break
 
         images = []
+        seen_urls = set()
+
+        # 1. media_content (usado por Gestion, El Comercio, Depor, RPP)
         for mc in (entry.get("media_content", []) or [])[:3]:
             if isinstance(mc, dict) and mc.get("url"):
-                images.append({"url": mc["url"]})
+                url = mc["url"].split("?")[0]
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    images.append({"url": url})
 
+        # 2. media_thumbnail (usado por BBC, Andina, France24)
+        if not images:
+            mt = getattr(entry, "media_thumbnail", None) or entry.get("media_thumbnail", [])
+            if isinstance(mt, list):
+                for t in mt[:3]:
+                    if isinstance(t, dict) and t.get("url"):
+                        url = t["url"].split("?")[0]
+                        if url not in seen_urls:
+                            seen_urls.add(url)
+                            images.append({"url": url})
+
+        # 3. enclosures (usado por France24)
+        if not images:
+            enc = getattr(entry, "enclosures", None) or entry.get("enclosures", [])
+            if isinstance(enc, list):
+                for e in enc[:3]:
+                    href = getattr(e, "href", None) or (e.get("href") if isinstance(e, dict) else None)
+                    if href and href not in seen_urls:
+                        seen_urls.add(href)
+                        images.append({"url": href})
+
+        # 4. img tag en summary HTML (fallback)
         if not images:
             summary_html = entry.get("summary", "") or ""
-            img_match = re.search(r'<img[^>]+src=([\"\'])(https?://[^\"\']+)\1', summary_html)
-            if img_match:
-                images.append({"url": img_match.group(1)})
+            for m in re.finditer(r'<img[^>]+src=([\"\'])(https?://[^\"\']+)\1', summary_html):
+                url = m.group(2).split("?")[0]
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    images.append({"url": url})
+                    break
 
         entry_id = entry.get("id") or entry.get("guid") or link or title
 
