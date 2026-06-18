@@ -27,6 +27,9 @@ dependencies = [
     "lxml>=5.2.0",
     "feedparser>=6.0.11",
 
+    # Email validation (pydantic depende de esto)
+    "email-validator>=2.1.0",
+
     # Telegram
     "python-telegram-bot>=21.3.0",
     "telethon>=1.36.0",
