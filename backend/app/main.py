@@ -86,6 +86,7 @@ app.add_middleware(
         "https://noticiando-pe.onrender.com",
         "https://noticiando-pe-web.onrender.com",
         "https://bot-noticias-dx2d.onrender.com",
+        "https://bot-noticias-static.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
