@@ -1,18 +1,25 @@
 services:
+  # ── Backend API (FastAPI) ──
   - type: web
     name: noticiando-pe-api
     runtime: python
-    buildCommand: pip install -e .
-    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    region: oregon
+    plan: free
+    buildCommand: pip install -e ".[dev]"
+    startCommand: >
+      uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
       - key: DATABASE_URL
-        fromDatabase:
-          name: noticiando-pe-db
-          property: connectionString
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_ADMIN_ID
-        sync: false
+        value: "6922534707"
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -23,27 +30,55 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@noticiando.pe
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
       - key: RENDER_EXTERNAL_URL
         fromService:
           name: noticiando-pe-api
           type: web
           property: url
-      - key: ADMIN_EMAIL
-        value: admin@noticiando.pe
-      - key: ADMIN_PASSWORD
-        sync: false
+
+  # ── Frontend (Static Site) ──
+  - type: static
+    name: noticiando-pe-web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: noticiando-pe-api
+          type: web
+          property: url
+
+  # ── Cron Job (Keep Alive + Scraping) ──
+  - type: cron
+    name: noticiando-pe-cron
+    schedule: "*/15 * * * *"
+    buildCommand: pip install -e ".[dev]"
+    startCommand: python scripts/run.py
+    envVars:
       - key: PYTHON_VERSION
         value: "3.11"
-    healthCheckPath: /health
-    autoDeploy: true
-
-databases:
-  - name: noticiando-pe-db
-    databaseName: noticiando
-    plan: free
-    postgresMajorVersion: 16
-
-cron:
-  - name: keep-alive
-    schedule: "*/5 * * * *"
-    command: curl -s $RENDER_EXTERNAL_URL/health > /dev/null
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_ID
+        value: "6922534707"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: HF_API_TOKEN
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: LOG_LEVEL
+        value: INFO
