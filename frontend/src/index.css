@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.sidebar-link:hover {
+  background-color: #eff6ff;
+  color: #1e3a8a;
+}
+
+.sidebar-link.active {
+  background-color: #1e3a8a;
+  color: white;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.btn-primary {
+  background-color: #1e3a8a;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: #1e40af;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+.btn-success {
+  background-color: #16a34a;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+.btn-success:hover {
+  background-color: #15803d;
+}
