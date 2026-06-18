@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: noticiando-pe-api
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: noticiando-pe-db
+          property: connectionString
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_ID
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: HF_API_TOKEN
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          name: noticiando-pe-api
+          type: web
+          property: url
+      - key: ADMIN_EMAIL
+        value: admin@noticiando.pe
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11"
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  - name: noticiando-pe-db
+    databaseName: noticiando
+    plan: free
+    postgresMajorVersion: 16
+
+cron:
+  - name: keep-alive
+    schedule: "*/5 * * * *"
+    command: curl -s $RENDER_EXTERNAL_URL/health > /dev/null

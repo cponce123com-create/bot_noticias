@@ -5,11 +5,14 @@
   channel = "stable-24.11"; # or "unstable"
   # Use https://search.nixos.org/packages to find packages
   packages = [
-    # pkgs.go
-    # pkgs.python311
-    # pkgs.python311Packages.pip
-    # pkgs.nodejs_22
-    # pkgs.nodePackages.nodemon
+    pkgs.python311
+    pkgs.python311Packages.pip
+    pkgs.python311Packages.virtualenv
+    pkgs.python311Packages.setuptools
+    pkgs.nodejs_22
+    pkgs.nodePackages.npm
+    pkgs.psql
+    pkgs.openssl
   ];
   # Sets environment variables in the workspace
   env = {};
