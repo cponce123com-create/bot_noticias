@@ -163,7 +163,7 @@ def scrape_source(feed_url: str, max_items: int = 20) -> List[Dict[str, Any]]:
         for tag in ("summary", "description", "subtitle"):
             val = entry.get(tag, "")
             if val:
-                summary = val[:500] if isinstance(val, str) else str(val)[:500]
+                summary = val[:2000] if isinstance(val, str) else str(val)[:2000]
                 summary = re.sub(r"<[^>]+>", " ", summary).strip()
                 break
 
@@ -262,8 +262,8 @@ def dedup_and_insert(conn, source_id: uuid.UUID, items: List[Dict], source_name:
         hashtags = generate_hashtags(item["title"], item["summary"], source_name, cat_slug)
 
         # Generar titulo limpio (max 80 chars) y resumen (max 300 chars)
-        title_clean = item["title"][:80]
-        summary_clean = item["summary"][:300]
+        title_clean = item["title"][:500]
+        summary_clean = item["summary"][:2000]
 
         # Imagenes
         images_json = json.dumps(item["images"])

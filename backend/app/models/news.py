@@ -34,8 +34,8 @@ class News(Base):
     original_summary: Mapped[str] = mapped_column(Text, nullable=True)
     original_body: Mapped[str] = mapped_column(Text, nullable=True)
     author: Mapped[str] = mapped_column(String(255), nullable=True)
-    title: Mapped[str] = mapped_column(String(80), nullable=True)
-    summary: Mapped[str] = mapped_column(String(300), nullable=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=True)
     hashtags: Mapped[list] = mapped_column(ARRAY(String), nullable=True)
     category_id: Mapped[int] = mapped_column(
