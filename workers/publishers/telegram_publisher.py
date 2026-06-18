@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import cloudinary
 import cloudinary.uploader
@@ -106,7 +107,9 @@ class TelegramPublisher:
             lines.append(f"\U0001F517 [Leer mas]({payload.url})")
         if payload.published_at:
             lines.append("")
-            lines.append(f"\U0001F552 {payload.published_at.strftime('%d/%m/%Y %H:%M')}")
+            peru_tz = ZoneInfo("America/Lima")
+            pub_local = payload.published_at.astimezone(peru_tz)
+            lines.append(f"\U0001F552 {pub_local.strftime('%d/%m/%Y %H:%M')}")
         if payload.hashtags:
             tags = " ".join(self._escape_md(f"#{tag.replace(' ', '_').lower()}") for tag in payload.hashtags[:5])
             lines.append("")
