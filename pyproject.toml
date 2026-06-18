@@ -34,13 +34,7 @@ dependencies = [
     "python-telegram-bot>=21.3.0",
     "telethon>=1.36.0",
 
-    # AI/ML
-    "sentence-transformers>=3.0.0",
-    "transformers>=4.41.0",
-    "torch>=2.3.0",
-    "scikit-learn>=1.5.0",
-
-    # Task Scheduling (reemplaza Redis/ARQ)
+    # Task Scheduling
     "apscheduler>=3.10.4",
 
     # Media
@@ -53,6 +47,14 @@ dependencies = [
     "jinja2>=3.1.4",
     "aiofiles>=24.1.0",
     "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+ai = [
+    "sentence-transformers>=3.0.0",
+    "transformers>=4.41.0",
+    "torch>=2.3.0",
+    "scikit-learn>=1.5.0",
 ]
 
 [project.optional-dependencies]
