@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Settings2, Bot,  Globe, Loader2 } from 'lucide-react';
+import { Save, Settings2, Bot, Globe, Loader2, Send } from 'lucide-react';
 import { getSystemConfig, updateSystemConfig, getTelegramChannels, createTelegramChannel, deleteTelegramChannel } from '../lib/api';
 import Modal from '../components/Modal';
 import { cn } from '../lib/utils';
