@@ -27,7 +27,9 @@ class ScraperLog(Base):
     items_new: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=True)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    extra_data: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

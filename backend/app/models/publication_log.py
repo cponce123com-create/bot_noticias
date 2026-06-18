@@ -28,7 +28,9 @@ class PublicationLog(Base):
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    extra_data: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
 
     __table_args__ = (
         CheckConstraint(

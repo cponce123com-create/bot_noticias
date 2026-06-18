@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # ── Telegram Bot (@noticiando_pe_bot) ──
     telegram_bot_token: str = ""
-    telegram_admin_id: Optional[int] = None
+    telegram_admin_id: Optional[str] = None
 
     # ── Cloudinary ──
     cloudinary_cloud_name: str = ""

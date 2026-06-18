@@ -14,9 +14,13 @@
     pkgs.psql
     pkgs.openssl
     pkgs.openssh
+    pkgs.stdenv.cc.cc.lib  # libstdc++ para greenlet/asyncpg
+    pkgs.zlib              # libz para psycopg2
   ];
   # Sets environment variables in the workspace
-  env = {};
+  env = {
+    LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib64:${pkgs.stdenv.cc.cc.lib}/lib";
+  };
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
