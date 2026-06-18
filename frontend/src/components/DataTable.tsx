@@ -31,7 +31,7 @@ interface DataTableProps<T> {
   onSort?: (key: string, direction: 'asc' | 'desc') => void;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+export default function DataTable<T>({
   columns,
   data,
   keyExtractor,
