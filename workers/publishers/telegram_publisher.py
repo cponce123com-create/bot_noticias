@@ -108,7 +108,7 @@ class TelegramPublisher:
             lines.append("")
             lines.append(f"\U0001F552 {payload.published_at.strftime('%d/%m/%Y %H:%M')}")
         if payload.hashtags:
-            tags = " ".join(f"#{tag.replace(' ', '_').lower()}" for tag in payload.hashtags[:5])
+            tags = " ".join(self._escape_md(f"#{tag.replace(' ', '_').lower()}") for tag in payload.hashtags[:5])
             lines.append("")
             lines.append(tags)
         return "\n".join(lines)
