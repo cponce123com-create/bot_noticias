@@ -13,6 +13,7 @@
     pkgs.nodePackages.npm
     pkgs.psql
     pkgs.openssl
+    pkgs.openssh
   ];
   # Sets environment variables in the workspace
   env = {};
