@@ -1,0 +1,131 @@
+# Fuentes RSS para Noticiando.pe
+# Cada fuente tiene: nombre, URL del feed, país, categorías, prioridad
+
+sources:
+  # === PERU ===
+  - name: "RPP Noticias"
+    url: "https://rpp.pe/rss"
+    country: "Peru"
+    language: "es"
+    priority: 10
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Gestion"
+    url: "https://gestion.pe/arcio/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 9
+    auto_publish: false
+    requires_approval: true
+    category: "economia"
+
+  - name: "El Comercio"
+    url: "https://elcomercio.pe/arcio/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 9
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Andina"
+    url: "https://andina.pe/agencia/rss.aspx"
+    country: "Peru"
+    language: "es"
+    priority: 10
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Peru21"
+    url: "https://peru21.pe/arcio/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "La Republica"
+    url: "https://larepublica.pe/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 8
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Depor"
+    url: "https://depor.com/arcio/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 6
+    auto_publish: false
+    requires_approval: true
+    category: "deportes"
+
+  - name: "El Bocón"
+    url: "https://elbocon.pe/rss/"
+    country: "Peru"
+    language: "es"
+    priority: 5
+    auto_publish: false
+    requires_approval: true
+    category: "deportes"
+
+  # === INTERNACIONAL ===
+  - name: "BBC Mundo"
+    url: "https://www.bbc.com/mundo/index.xml"
+    country: "Internacional"
+    language: "es"
+    priority: 8
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "Reuters"
+    url: "https://www.reutersagency.com/feed/"
+    country: "Internacional"
+    language: "en"
+    priority: 8
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "AP News"
+    url: "https://rsshub.app/apnews/topics/apf-topnews"
+    country: "Internacional"
+    language: "en"
+    priority: 8
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "DW Español"
+    url: "https://rss.dw.com/rdf/rss-esp-all"
+    country: "Internacional"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "France24 Español"
+    url: "https://www.france24.com/es/rss"
+    country: "Internacional"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "El País"
+    url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada"
+    country: "Internacional"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
