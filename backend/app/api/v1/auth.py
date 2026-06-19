@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_session
+from backend.app.config import settings
 from backend.app.core.security import (
     create_access_token,
     get_admin_user,
