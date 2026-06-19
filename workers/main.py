@@ -180,7 +180,7 @@ async def process_source(source_id: uuid.UUID):
             return
 
         # ── Insert en lote (executemany) ──
-        status_value = "published" if auto_approve else "pending_approval"
+        status_value = "approved" if auto_approve else "pending_approval"
         params = [
             {
                 "sid": source_id, "eid": item["external_id"], "url": item["url"],

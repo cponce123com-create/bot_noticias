@@ -104,7 +104,7 @@ async def approve_news(
     action = data.action if data else "approve"
 
     if action == "approve":
-        news.status = "published"
+        news.status = "approved"
         if data and data.title:
             news.title = data.title
         if data and data.summary:
@@ -114,7 +114,7 @@ async def approve_news(
     elif action == "reject":
         news.status = "rejected"
     elif action == "edit":
-        news.status = "published"
+        news.status = "approved"
         if data and data.title:
             news.title = data.title
         if data and data.summary:
@@ -136,9 +136,12 @@ async def approve_news(
         try:
             logger.info("Publicando noticia %s en Telegram...", news.id)
             await _publish_to_telegram(news)
+            news.status = "published"
+            await session.flush()
             logger.info("Publicacion completada para noticia %s", news.id)
         except Exception as e:
             logger.error("Error publicando noticia %s en Telegram: %s", news.id, e, exc_info=True)
+            # Status queda como approved, publish_pending reintentara
 
     return news
 
