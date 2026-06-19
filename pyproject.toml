@@ -29,6 +29,7 @@ dependencies = [
     "feedparser>=6.0.11",
     "pyyaml>=6.0",
     "gnews>=0.2.0",
+    "telethon>=1.37.0",
 
     # Email validation (pydantic depende de esto)
     "email-validator>=2.1.0",

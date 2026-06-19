@@ -141,6 +141,13 @@ async def process_source(source_id: uuid.UUID):
 
         if source_type == "google_news":
             items = await scrape_google_news_source(source_id, keyword)
+        elif source_type == "telegram_channel":
+            from workers.scrapers.telegram_scraper import scrape_telegram_channel
+            username = config.get("username", "") if isinstance(config, dict) else ""
+            if username:
+                items = await scrape_telegram_channel(source_id, username, max_items=10)
+            else:
+                items = []
         else:
             items = await scrape_rss_source(source_id, feed_url)
 
@@ -262,7 +269,7 @@ async def scrape_all_sources():
             text("""
                 SELECT id, name, config::text as config_json
                 FROM sources
-                WHERE source_type IN ('rss', 'google_news') AND is_active = true AND is_paused = false
+                WHERE source_type IN ('rss', 'google_news', 'telegram_channel') AND is_active = true AND is_paused = false
                   AND (cooldown_until IS NULL OR cooldown_until < NOW())
                   AND error_count < max_errors
                 ORDER BY priority DESC
