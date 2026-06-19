@@ -193,18 +193,40 @@ async def _publish_to_telegram(news: News) -> None:
 
     import httpx
 
+    # Obtener primera imagen si existe
+    first_image = None
+    if news.images and isinstance(news.images, list):
+        for img in news.images:
+            if isinstance(img, dict) and img.get("url"):
+                first_image = img["url"]
+                break
+
     for channel in channels:
         try:
-            resp = httpx.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json={
-                    "chat_id": channel.chat_id,
-                    "text": text,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
-                timeout=15,
-            )
+            if first_image:
+                # Enviar foto con caption
+                resp = httpx.post(
+                    f"https://api.telegram.org/bot{token}/sendPhoto",
+                    json={
+                        "chat_id": channel.chat_id,
+                        "photo": first_image,
+                        "caption": text,
+                        "parse_mode": "HTML",
+                    },
+                    timeout=30,
+                )
+            else:
+                # Solo texto
+                resp = httpx.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={
+                        "chat_id": channel.chat_id,
+                        "text": text,
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True,
+                    },
+                    timeout=15,
+                )
             data = resp.json()
             if data.get("ok"):
                 msg_id = data["result"]["message_id"]
