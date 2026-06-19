@@ -244,6 +244,11 @@ def _fetch_article(url: str) -> dict:
         # Obtener todos los <p> dentro del contenedor
         for p in (container[0].css("p") if isinstance(container, list) else container.css("p")):
             text = p.get_all_text().strip() if p else ""
+            if text:
+                # Normalizar: eliminar saltos de linea y espacios multiples
+                # causados por <strong>, <br>, <a> dentro del <p>
+                import re
+                text = re.sub(r'\s+', ' ', text).strip()
             # Filtrar: minimo 40 chars (elimina nav/footer), maximo 1000 (elimina ads gigantes)
             if 40 < len(text) < 1000:
                 paragraphs.append(text)
