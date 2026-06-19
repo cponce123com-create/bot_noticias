@@ -24,7 +24,7 @@ router = APIRouter(prefix="/telegram-channels", tags=["telegram-channels"])
 
 
 async def _resolve_chat_id(raw: str) -> int:
-    \"\"\"Convierte un @username a chat_id numerico usando la API de Telegram.\"\"\"
+    """Convierte un @username a chat_id numerico usando la API de Telegram."""
     if raw.startswith("@"):
         username = raw.lstrip("@")
         token = settings.telegram_bot_token
