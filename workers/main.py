@@ -48,7 +48,7 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                 for tag in ("summary", "description", "subtitle"):
                     val = entry.get(tag, "")
                     if val:
-                        summary = val[:300] if isinstance(val, str) else str(val)[:300]
+                        summary = val[:2000] if isinstance(val, str) else str(val)[:2000]
                         break
 
                 published = None
