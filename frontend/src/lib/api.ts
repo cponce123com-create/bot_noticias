@@ -10,11 +10,29 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,  // Enviar cookies httpOnly automaticamente
+  withCredentials: true,
 });
 
+export default api;
+
+// Token en memoria (no localStorage) - se pierde al recargar, segura contra XSS
+let _accessToken: string | null = null;
+
+export function setAccessToken(token: string | null) {
+  _accessToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return _accessToken;
+}
+
 api.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    if (_accessToken) {
+      config.headers.Authorization = `Bearer ${_accessToken}`;
+    }
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
@@ -27,6 +45,7 @@ api.interceptors.response.use(
 
       switch (status) {
         case 401:
+          _accessToken = null;
           api.post('/auth/logout').catch(() => {});
           // No usar window.location.href: eso causa page load completo y 404 en static sites.
           // useRequireAuth en hooks/useAuth.tsx redirige via React Router automaticamente.
