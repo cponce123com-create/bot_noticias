@@ -32,7 +32,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // No usar window.location.href: eso causa page load completo y 404 en static sites.
+      // useRequireAuth en hooks/useAuth.tsx redirige via React Router automaticamente.
     }
     return Promise.reject(error);
   }
