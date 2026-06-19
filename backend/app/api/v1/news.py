@@ -243,8 +243,8 @@ async def _publish_to_telegram(news: News) -> None:
 
     for channel in channels:
         try:
-            if first_image:
-                # Intentar con foto; si falla, enviar solo texto
+            # Si hay imagen Y el texto no supera 950 chars, enviar con foto
+            if first_image and len(text) <= 950:
                 photo_resp = httpx.post(
                     f"https://api.telegram.org/bot{token}/sendPhoto",
                     json={
@@ -275,7 +275,7 @@ async def _publish_to_telegram(news: News) -> None:
                         timeout=15,
                     )
             else:
-                # Solo texto
+                # Solo texto (tambien si hay foto pero texto muy largo para caption)
                 resp = httpx.post(
                     f"https://api.telegram.org/bot{token}/sendMessage",
                     json={
