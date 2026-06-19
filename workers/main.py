@@ -129,6 +129,13 @@ async def process_source(source_id: uuid.UUID):
         name, feed_url = row
         logger.info("Procesando: %s (%s)", name, feed_url)
 
+        # Leer config: auto_approve
+        cfg = await session.execute(
+            text("SELECT value FROM system_config WHERE key = 'auto_approve'")
+        )
+        cfg_row = cfg.fetchone()
+        auto_approve = cfg_row and cfg_row[0] in (True, "true", "True", "1")
+
         items = await scrape_rss_source(source_id, feed_url)
         if not items:
             logger.info("  Sin items para %s", name)
@@ -171,12 +178,14 @@ async def process_source(source_id: uuid.UUID):
             return
 
         # ── Insert en lote (executemany) ──
+        status_value = "published" if auto_approve else "pending_approval"
         params = [
             {
                 "sid": source_id, "eid": item["external_id"], "url": item["url"],
                 "title": item["original_title"], "summary": item["original_summary"],
                 "author": item["author"], "published": item["published_at"],
                 "images": item["images"], "lang": item["language"],
+                "status": status_value,
             }
             for item in new_items
         ]
@@ -185,7 +194,7 @@ async def process_source(source_id: uuid.UUID):
                 INSERT INTO news (source_id, external_id, url, original_title, original_summary,
                                   author, published_at, images, language, status)
                 VALUES (:sid, :eid, :url, :title, :summary,
-                        :author, :published, CAST(:images AS jsonb), :lang, 'pending_approval')
+                        :author, :published, CAST(:images AS jsonb), :lang, :status)
             """),
             params,
         )

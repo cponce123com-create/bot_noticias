@@ -274,6 +274,54 @@ export default function Settings() {
           )}
         </div>
 
+        {/* Automation Toggles */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Automatización</h2>
+              <p className="text-sm text-gray-500">Control de scraping y aprobación automática</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {['auto_scrape', 'auto_approve'].map((key) => {
+              const cfg = configs.find((c) => c.key === key);
+              const isOn = cfg?.value === true || cfg?.value === 'true' || cfg?.value === 'True' || cfg?.value === '1';
+              return (
+                <div key={key} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 capitalize">
+                      {key === 'auto_scrape' ? 'Scraping automático' : 'Aprobación automática'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {key === 'auto_scrape'
+                        ? 'Las fuentes se scrapean automáticamente cada 5 min'
+                        : 'Las noticias nuevas se publican sin revisión manual'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleSaveConfig(key, !isOn)}
+                    disabled={savingKey === key}
+                    className={cn(
+                      'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+                      isOn ? 'bg-green-500' : 'bg-gray-300'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform',
+                        isOn ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* System Configuration */}
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-4">
