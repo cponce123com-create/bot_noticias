@@ -114,3 +114,97 @@ def _is_valid_article_url(url: str, base_url: str) -> bool:
         if re.search(pat, path, re.I):
             return False
     return True
+
+
+# ── Enriquecimiento individual de articulos ──────────────────────────────────
+
+# Selectores para extraer cuerpo del articulo (por orden de preferencia)
+BODY_SELECTORS = [
+    "article[class*='content']",
+    "article",
+    "[class*='article-body']",
+    "[class*='article__content']",
+    "[class*='story-body']",
+    "[class*='story-content']",
+    "[class*='entry-content']",
+    "[class*='post-content']",
+    "[class*='nota-content']",
+    "[class*='noticia-cuerpo']",
+    "[class*='noticia-contenido']",
+    "[class*='contenido-nota']",
+    "[class*='conten']",  # La Republica, Peru21
+    "[itemprop='articleBody']",
+    "main",
+]
+
+# Selectores para autores
+AUTHOR_SELECTORS = [
+    "[class*='author'] a",
+    "[class*='author']",
+    "[class*='byline']",
+    "[rel='author']",
+    "[itemprop='author']",
+]
+
+
+async def scrape_article(article_url: str) -> dict:
+    """Obtiene el texto completo + imagen principal de un articulo.
+
+    Args:
+        article_url: URL completa del articulo
+
+    Returns:
+        Dict con 'full_text', 'image_url', 'author'
+    """
+    import asyncio
+    return await asyncio.to_thread(_fetch_article, article_url)
+
+
+def _fetch_article(url: str) -> dict:
+    """Sincrono - ejecutado en thread pool."""
+    result = {"full_text": "", "image_url": "", "author": ""}
+
+    try:
+        resp = httpx.get(url, headers=HEADERS, follow_redirects=True, timeout=20)
+        if resp.status_code != 200:
+            return result
+    except Exception:
+        return result
+
+    sel = Selector(resp.text, url=url)
+
+    # 1. Extraer cuerpo del articulo
+    for css in BODY_SELECTORS:
+        body = sel.css(css)
+        if body:
+            text = body[0].get_all_text() if isinstance(body, list) else body.get_all_text()
+            if text:
+                # Limpiar espacios multiples y truncar
+                clean = re.sub(r'\s+', ' ', text).strip()
+                if len(clean) > 100:
+                    result["full_text"] = clean[:3000]
+                    break
+
+    # 2. Extraer imagen principal (og:image > primer img en articulo)
+    og_image = sel.css("meta[property='og:image']")
+    if og_image:
+        result["image_url"] = og_image[0].attrib.get("content", "")
+    if not result["image_url"]:
+        for css in BODY_SELECTORS:
+            img = sel.css(f"{css} img")
+            if img:
+                src = img[0].attrib.get("src", "")
+                if src and src.startswith("http"):
+                    result["image_url"] = src
+                    break
+
+    # 3. Extraer autor
+    for css in AUTHOR_SELECTORS:
+        author_el = sel.css(css)
+        if author_el:
+            text = author_el[0].get_all_text().strip() if isinstance(author_el, list) else author_el.get_all_text().strip()
+            if text and len(text) < 100:
+                result["author"] = text[:80]
+                break
+
+    return result

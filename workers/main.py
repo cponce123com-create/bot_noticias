@@ -225,6 +225,35 @@ async def process_source(source_id: uuid.UUID):
         await session.commit()
         logger.info("  NOTICIAS NUEVAS: %d para %s", len(new_items), name)
 
+        # ── Enriquecer con texto completo via Scrapling ──
+        if new_items and source_type == "rss":
+            logger.info("  Enriqueciendo %d articulos para %s...", min(len(new_items), 5), name)
+            for item in new_items[:5]:  # Limitar a 5 por fuente
+                try:
+                    from workers.scrapers.scrapling_scraper import scrape_article
+                    enriched = await scrape_article(item["url"])
+                    if enriched["full_text"] or enriched["image_url"] or enriched["author"]:
+                        update_parts = []
+                        params: dict[str, Any] = {"id": item["external_id"]}
+                        if enriched["full_text"]:
+                            update_parts.append("original_summary = :full_text")
+                            params["full_text"] = enriched["full_text"][:2000]
+                        if enriched["image_url"]:
+                            update_parts.append("images = :images")
+                            params["images"] = json.dumps([{"url": enriched["image_url"], "type": "image/jpeg", "medium": "image"}])
+                        if enriched["author"]:
+                            update_parts.append("author = :author")
+                            params["author"] = enriched["author"]
+                        if update_parts:
+                            async with async_session_factory() as enrich_session:
+                                await enrich_session.execute(
+                                    text(f"UPDATE news SET {', '.join(update_parts)} WHERE external_id = :id"),
+                                    params,
+                                )
+                                await enrich_session.commit()
+                except Exception:
+                    logger.debug("  Enrichment fallo para %s", item["url"][:50])
+
 
 async def scrape_all_sources():
     """Scrapea todas las fuentes activas con concurrencia controlada."""
