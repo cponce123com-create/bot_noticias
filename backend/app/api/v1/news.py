@@ -183,6 +183,23 @@ async def approve_all_news(
     return {"approved": approved, "total": len(pending)}
 
 
+@router.post("/scrape-now")
+async def scrape_now(
+    session: AsyncSession = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    """Ejecuta un ciclo de scraping manual inmediato."""
+    try:
+        from workers.main import scrape_all_sources
+        await scrape_all_sources()
+        return {"status": "ok", "message": "Scraping completado"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error en scraping: {e}",
+        )
+
+
 async def _publish_to_telegram(news: News) -> None:
     """Publica una noticia a los canales de Telegram via API directa."""
     from backend.app.config import settings

@@ -8,7 +8,7 @@ import {
   Inbox,
   Loader2,
 } from 'lucide-react';
-import { getApprovalQueue, approveNews, approveAllNews, rejectNews } from '../lib/api';
+import { getApprovalQueue, approveNews, approveAllNews, rejectNews, scrapeNow } from '../lib/api';
 import { useToast } from '../hooks/useToast';
 import { formatDate, truncate, cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
@@ -37,6 +37,7 @@ export default function ApprovalQueue() {
   const [editCategory, setEditCategory] = useState('');
   const [processing, setProcessing] = useState<number | null>(null);
   const [approvingAll, setApprovingAll] = useState(false);
+  const [scrapingNow, setScrapingNow] = useState(false);
   const { toast } = useToast();
 
   const loadItems = async () => {
@@ -99,6 +100,20 @@ export default function ApprovalQueue() {
     }
   };
 
+  const handleScrapeNow = async () => {
+    setScrapingNow(true);
+    try {
+      const result = await scrapeNow();
+      toast(result.message || 'Scraping completado', 'success');
+      loadItems();
+    } catch (err) {
+      toast('Error al ejecutar scraping', 'error');
+      console.error('Error en scraping manual:', err);
+    } finally {
+      setScrapingNow(false);
+    }
+  };
+
   const handleEditApprove = async () => {
     if (!editItem) return;
     setProcessing(editItem.id);
@@ -144,21 +159,32 @@ export default function ApprovalQueue() {
       <div className="page-header">
         <h1 className="page-title">Cola de aprobación</h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleScrapeNow}
+            disabled={scrapingNow}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {scrapingNow ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Loader2 className="w-3.5 h-3.5" />
+            )}
+            {scrapingNow ? 'Scrapeando...' : 'Scrapear ahora'}
+          </button>
           {items.length > 0 && (
-            <button
-              onClick={handleApproveAll}
-              disabled={approvingAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {approvingAll ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <CheckCircle className="w-3.5 h-3.5" />
-              )}
-              Aprobar todo ({items.length})
-            </button>
-          )}
-          <div className="text-sm text-gray-500">
+          <button
+            onClick={handleApproveAll}
+            disabled={approvingAll}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50"
+          >
+            {approvingAll ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CheckCircle className="w-3.5 h-3.5" />
+            )}
+            Aprobar todo ({items.length})
+          </button>
+          )}          <div className="text-sm text-gray-500">
             {items.length} noticia(s) pendiente(s)
           </div>
         </div>

@@ -259,4 +259,9 @@ export async function deleteTelegramChannel(id: number) {
   return response.data;
 }
 
+export async function scrapeNow() {
+  const response = await api.post('/news/scrape-now');
+  return response.data;
+}
+
 export default api;
