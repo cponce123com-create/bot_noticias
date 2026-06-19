@@ -165,7 +165,7 @@ class AsyncScraper(ABC):
             self._client = httpx.AsyncClient(
                 follow_redirects=True,
                 timeout=httpx.Timeout(self.timeout),
-                proxies=proxies,  # type: ignore[arg-type]
+                proxy=proxies,  # type: ignore[arg-type]
             )
         return self._client
 

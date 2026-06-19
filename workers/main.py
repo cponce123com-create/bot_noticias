@@ -28,93 +28,23 @@ MAX_CONCURRENT_SCRAPES = 5
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_SCRAPES)
 
 async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[str, Any]]:
-    """Scrapea un feed RSS y retorna items normalizados."""
-    items: List[Dict[str, Any]] = []
-    feed_content: bytes | None = None
-    max_retries = 3
+    """Scrapea un feed RSS usando el scraper modular RssScraper (con rate limiting, UA rotation, backoff)."""
+    from workers.scrapers.rss_scraper import RssScraper
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                resp = await client.get(feed_url, headers={
-                    "User-Agent": "Mozilla/5.0 (NoticiandoBot/1.0; +https://noticiando.pe)"
-                })
-                resp.raise_for_status()
-            feed_content = resp.content
-            break
-        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:
-            if attempt < max_retries:
-                wait = 2 ** attempt
-                logger.warning("Intento %d/%d fallo para %s, reintentando en %ds: %s", attempt, max_retries, feed_url, wait, exc)
-                await asyncio.sleep(wait)
-            else:
-                logger.error("Error scraping %s tras %d intentos: %s", feed_url, max_retries, exc)
-                return items
-        except Exception as exc:
-            logger.error("Error scraping %s: %s", feed_url, exc, exc_info=True)
-            return items
-
-    if feed_content is None:
-        return items
-
-    import feedparser
-    feed = feedparser.parse(feed_content)
-
-    for entry in feed.entries[:20]:
-        title = (entry.get("title") or "").strip()
-        if not title:
-            continue
-        if title.startswith("/"):
-            continue
-
-        link = entry.get("link", "")
-        summary = ""
-        for tag in ("summary", "description", "subtitle"):
-            val = entry.get(tag, "")
-            if val:
-                summary = val[:2000] if isinstance(val, str) else str(val)[:2000]
-                break
-
-        published = None
-        for attr in ("published_parsed", "updated_parsed"):
-            parsed = getattr(entry, attr, None)
-            if parsed:
-                try:
-                    published = datetime(*parsed[:6], tzinfo=timezone.utc)
-                except Exception:
-                    pass
-                break
-
-        author = entry.get("author", "") or ""
-
-        images = []
-        media_content = entry.get("media_content", []) or []
-        for mc in media_content[:3]:
-            if isinstance(mc, dict) and mc.get("url"):
-                images.append({"url": mc["url"], "type": mc.get("type", ""), "medium": "image"})
-
-        if not images:
-            import re
-            summary_html = entry.get("summary", "") or ""
-            img_match = re.search(r"<img[^>]+src=[\"'](https?://[^\"']+)[\"']", summary_html)
-            if img_match:
-                images.append({"url": img_match.group(1), "type": "image/jpeg", "medium": "image"})
-
-        requires_fetch = not images
-        entry_id = entry.get("id") or entry.get("guid") or link
-
-        items.append({
-            "external_id": entry_id,
-            "url": link,
-            "original_title": title,
-            "original_summary": summary[:2000],
-            "author": author,
-            "published_at": published,
-            "images": images,
-            "language": feed.feed.get("language", "es")[:2],
-            "requires_image_fetch": requires_fetch,
-        })
-    return items
+    scraper = RssScraper(
+        source_id=source_id,
+        source_config={"feed_url": feed_url},
+        max_retries=3,
+        base_delay=2.0,
+        requests_per_minute=20,
+    )
+    try:
+        result = await scraper.run()
+        items = result.get("items", [])
+        return [item.to_dict() for item in items[:20]]
+    except Exception as e:
+        logger.error("RssScraper fallo para %s: %s", feed_url, e, exc_info=True)
+        return []
 
 
 async def scrape_google_news_source(source_id: uuid.UUID, keyword: str) -> list[dict]:
