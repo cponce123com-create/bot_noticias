@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
@@ -56,7 +56,9 @@ async def register(data: UserCreate, session: AsyncSession = Depends(get_session
 @limiter.limit("10/minute")
 async def login(
     request: Request,
-    data: UserLogin, session: AsyncSession = Depends(get_session)):
+    data: UserLogin,
+    response: Response,
+    session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
@@ -76,10 +78,32 @@ async def login(
     await session.flush()
     token = create_access_token({"sub": str(user.id)})
 
+    # Setear cookie httpOnly en vez de solo devolver token en body
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        samesite="lax",
+        path="/api",
+        secure=True,
+    )
+
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
     )
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        path="/api",
+        httponly=True,
+        samesite="lax",
+    )
+    return {"status": "ok", "message": "Sesion cerrada"}
 
 
 @router.get("/me", response_model=UserResponse)

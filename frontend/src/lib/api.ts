@@ -10,16 +10,11 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // Enviar cookies httpOnly automaticamente
 });
 
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
+  (config) => config,
   (error) => Promise.reject(error)
 );
 
@@ -32,7 +27,7 @@ api.interceptors.response.use(
 
       switch (status) {
         case 401:
-          localStorage.removeItem('token');
+          api.post('/auth/logout').catch(() => {});
           // No usar window.location.href: eso causa page load completo y 404 en static sites.
           // useRequireAuth en hooks/useAuth.tsx redirige via React Router automaticamente.
           break;

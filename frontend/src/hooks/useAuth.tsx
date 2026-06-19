@@ -25,17 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
     try {
       const data = await getMe();
       setUser(data.user || data);
     } catch {
-      localStorage.removeItem('token');
       setUser(null);
     } finally {
       setLoading(false);
@@ -48,13 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiLogin(email, password);
-    const token = data.access_token || data.token;
-    localStorage.setItem('token', token);
     setUser(data.user || data);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
+    import('../lib/api').then(mod => mod.default.post('/auth/logout'));
     setUser(null);
   }, []);
 
