@@ -65,6 +65,12 @@ async def check_live_matches() -> None:
                     headers=headers,
                 )
                 data = resp.json()
+                if resp.status_code == 403:
+                    logger.warning(
+                        "API Football 403: credenciales invalidas. "
+                        "Verifica FOOTBALL_API_KEY en Render o renueva tu suscripcion RapidAPI."
+                    )
+                    return
             matches = data.get("response", [])
             _live_cache["matches"] = matches
             _live_cache["ts"] = now_ts
