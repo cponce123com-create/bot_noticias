@@ -170,6 +170,22 @@ def _fetch_gnews(keyword: str) -> list[dict]:
     return gn.get_news(keyword)
 
 
+def _get_base_url(feed_url: str) -> str | None:
+    """Extrae la URL base de un feed URL para scraping directo."""
+    import re
+    # Detectar patrones comunes de feeds
+    m = re.match(r'(https?://[^/]+)', feed_url)
+    if m:
+        base = m.group(1)
+        # Si el feed_url tiene subpath de RSS, usar solo el dominio
+        rest = feed_url[len(base):]
+        if ('rss' in rest.lower() or 'feed' in rest.lower() or 'arc' in rest.lower()
+            or 'outbound' in rest.lower() or 'xml' in rest.lower()):
+            return base
+        return feed_url
+    return None
+
+
 async def process_source(source_id: uuid.UUID):
     """Pipeline completo para una fuente con dedup por batch."""
     async with async_session_factory() as session:
@@ -197,6 +213,19 @@ async def process_source(source_id: uuid.UUID):
             items = await scrape_google_news_source(source_id, keyword)
         else:
             items = await scrape_rss_source(source_id, feed_url)
+
+        # Fallback a Scrapling si RSS no trajo items (sitios bloqueados/sin RSS)
+        if not items and source_type == "rss":
+            logger.info("  RSS dio 0 items para %s, intentando Scrapling...", name)
+            try:
+                from workers.scrapers.scrapling_scraper import scrape_scrapling
+                # Usar la URL base del sitio (sin el path del feed)
+                base_url = _get_base_url(feed_url)
+                if base_url:
+                    items = await scrape_scrapling(source_id, name, base_url, max_items=15)
+            except Exception as e:
+                logger.error("  Scrapling fallo para %s: %s", name, e)
+
         if not items:
             logger.info("  Sin items para %s", name)
             return

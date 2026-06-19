@@ -406,7 +406,7 @@ class RssScraper(AsyncScraper):
         if not html:
             return None
         import re
-        match = re.search(r'<img[^>]+src=["'](https?://[^"']+)["']', html, re.IGNORECASE)
+        match = re.search(r"<img[^>]+src=[\"'](https?://[^\"']+)[\"']", html, re.IGNORECASE)
         return match.group(1) if match else None
 
     @staticmethod
