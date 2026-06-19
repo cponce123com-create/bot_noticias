@@ -311,7 +311,7 @@ async def publish_pending():
                 lines.append("")
                 lines.append('\U0001F517 <a href="' + escaped_url + '">Leer mas</a>')
 
-            text = '\n'.join(lines)
+            msg_text = '\n'.join(lines)
 
             # Obtener primera imagen
             first_image = None
@@ -329,7 +329,7 @@ async def publish_pending():
                             json={
                                 "chat_id": ch.chat_id,
                                 "photo": first_image,
-                                "caption": text,
+                                "caption": msg_text,
                                 "parse_mode": "HTML",
                             },
                             timeout=30,
@@ -346,7 +346,7 @@ async def publish_pending():
                                 f"https://api.telegram.org/bot{token}/sendMessage",
                                 json={
                                     "chat_id": ch.chat_id,
-                                    "text": text,
+                                    "text": msg_text,
                                     "parse_mode": "HTML",
                                     "disable_web_page_preview": True,
                                 },
@@ -357,7 +357,7 @@ async def publish_pending():
                             f"https://api.telegram.org/bot{token}/sendMessage",
                             json={
                                 "chat_id": ch.chat_id,
-                                "text": text,
+                                "text": msg_text,
                                 "parse_mode": "HTML",
                                 "disable_web_page_preview": True,
                             },
