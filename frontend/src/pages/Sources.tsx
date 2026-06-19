@@ -9,6 +9,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { getSources, createSource, updateSource, deleteSource, pauseSource, activateSource } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { formatDate, cn } from '../lib/utils';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
@@ -73,6 +74,7 @@ export default function Sources() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const loadSources = async () => {
     setLoading(true);
@@ -175,7 +177,9 @@ export default function Sources() {
         await activateSource(source.id);
       }
       loadSources();
+      toast('Estado actualizado', 'success');
     } catch (err) {
+      toast('Error al cambiar el estado de la fuente', 'error');
       console.error('Error cambiando estado:', err);
     }
   };

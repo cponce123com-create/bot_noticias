@@ -42,6 +42,8 @@ engine = create_async_engine(
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_pre_ping=settings.db_pool_pre_ping,
+    pool_recycle=300,
+    pool_timeout=30,
     connect_args={"ssl": create_asyncpg_ssl_context()},
     echo=False,
 )

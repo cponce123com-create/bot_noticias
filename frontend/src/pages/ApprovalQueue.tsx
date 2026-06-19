@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getApprovalQueue, approveNews, rejectNews } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { formatDate, truncate, cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
 import Modal from '../components/Modal';
@@ -35,6 +36,7 @@ export default function ApprovalQueue() {
   const [editSummary, setEditSummary] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [processing, setProcessing] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const loadItems = async () => {
     setLoading(true);
@@ -93,7 +95,9 @@ export default function ApprovalQueue() {
       });
       setEditItem(null);
       loadItems();
+      toast('Noticia aprobada correctamente', 'success');
     } catch (err) {
+      toast('Error al guardar los cambios', 'error');
       console.error('Error guardando cambios:', err);
     } finally {
       setProcessing(null);

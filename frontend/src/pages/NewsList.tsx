@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Eye, ThumbsUp, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { getNews, getSources, getCategories, approveNews } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { formatDate, truncate, cn } from '../lib/utils';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
@@ -38,6 +39,7 @@ export default function NewsList() {
   const [categories, setCategories] = useState<SelectOption[]>([]);
   const [viewNews, setViewNews] = useState<NewsItem | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const loadNews = async () => {
     setLoading(true);
@@ -90,6 +92,7 @@ export default function NewsList() {
       await approveNews(id);
       loadNews();
     } catch (err) {
+      toast('Error al aprobar la noticia', 'error');
       console.error('Error aprobando noticia:', err);
     }
   };

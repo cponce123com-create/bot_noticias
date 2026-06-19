@@ -40,13 +40,13 @@ async def update_system_config(
 
     if existing:
         existing.value = data.value
-        existing.updated_by = str(current_user.id)
+        existing.updated_by = current_user.id
         config = existing
     else:
         config = SystemConfig(
             key=key,
             value=data.value,
-            updated_by=str(current_user.id),
+            updated_by=current_user.id,
         )
         session.add(config)
 

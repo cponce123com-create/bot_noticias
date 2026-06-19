@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Palette } from 'lucide-react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { cn } from '../lib/utils';
 import Modal from '../components/Modal';
 
@@ -41,6 +42,7 @@ export default function Categories() {
   const [form, setForm] = useState<CategoryForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const loadCategories = async () => {
     setLoading(true);
@@ -108,7 +110,9 @@ export default function Categories() {
       await deleteCategory(id);
       setDeleteConfirm(null);
       loadCategories();
+      toast('Categoría eliminada', 'success');
     } catch (err) {
+      toast('Error al eliminar la categoría', 'error');
       console.error('Error eliminando categoría:', err);
     }
   };

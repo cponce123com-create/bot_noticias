@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_session
 from backend.app.core.security import (
     create_access_token,
+    get_admin_user,
     get_current_user,
     get_password_hash,
     verify_password,
@@ -23,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(data: UserCreate, session: AsyncSession = Depends(get_session)):
+async def register(data: UserCreate, session: AsyncSession = Depends(get_session), _current_user: User = Depends(get_admin_user)):
     existing = await session.execute(
         select(User).where((User.email == data.email) | (User.username == data.username))
     )
@@ -62,7 +65,8 @@ async def login(data: UserLogin, session: AsyncSession = Depends(get_session)):
             detail="Usuario desactivado",
         )
 
-    user.last_login = None  # se setea en DB
+    user.last_login = datetime.now(timezone.utc)
+    await session.flush()
     token = create_access_token({"sub": str(user.id)})
 
     return TokenResponse(

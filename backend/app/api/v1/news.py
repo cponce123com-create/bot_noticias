@@ -133,6 +133,7 @@ async def approve_news(
 @router.post("/{news_id}/reject", response_model=NewsResponse)
 async def reject_news(
     news_id: uuid.UUID,
+    data: Optional[dict] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -145,6 +146,8 @@ async def reject_news(
 
     news.status = "rejected"
     news.reviewed_by = current_user.id
+    if data and data.get("reason"):
+        news.review_notes = data["reason"]
 
     await session.flush()
     await session.refresh(news)

@@ -3,6 +3,7 @@ import { Save, Settings2, Bot, Globe, Loader2, Send } from 'lucide-react';
 import { getSystemConfig, updateSystemConfig, getTelegramChannels, createTelegramChannel, deleteTelegramChannel } from '../lib/api';
 import Modal from '../components/Modal';
 import { cn } from '../lib/utils';
+import { useToast } from '../hooks/useToast';
 
 interface ConfigItem {
   key: string;
@@ -25,7 +26,7 @@ export default function Settings() {
   const [channelModal, setChannelModal] = useState(false);
   const [channelForm, setChannelForm] = useState({ name: '', channel_id: '' });
   const [savingChannel, setSavingChannel] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function load() {
@@ -37,6 +38,7 @@ export default function Settings() {
         setConfigs(configData.items || configData.data || configData.configs || configData || []);
         setChannels(channelData.items || channelData.data || channelData.channels || channelData || []);
       } catch (err) {
+        toast('Error al cargar configuración', 'error');
         console.error('Error cargando configuraciones:', err);
       } finally {
         setLoading(false);
@@ -47,14 +49,12 @@ export default function Settings() {
 
   const handleSaveConfig = async (key: string, value: string | number | boolean) => {
     setSavingKey(key);
-    setMessage(null);
     try {
       await updateSystemConfig(key, value);
-      setMessage({ type: 'success', text: 'Configuración actualizada correctamente' });
-      setTimeout(() => setMessage(null), 3000);
+      toast('Configuración actualizada', 'success');
     } catch (err) {
+      toast('Error al guardar la configuración', 'error');
       console.error('Error guardando configuración:', err);
-      setMessage({ type: 'error', text: 'Error al guardar la configuración' });
     } finally {
       setSavingKey(null);
     }
@@ -70,9 +70,11 @@ export default function Settings() {
       });
       setChannelModal(false);
       setChannelForm({ name: '', channel_id: '' });
+      toast('Canal añadido correctamente', 'success');
       const data = await getTelegramChannels();
       setChannels(data.items || data.data || data.channels || data || []);
     } catch (err) {
+      toast('Error al añadir el canal', 'error');
       console.error('Error añadiendo canal:', err);
     } finally {
       setSavingChannel(false);
@@ -82,9 +84,11 @@ export default function Settings() {
   const handleDeleteChannel = async (id: number) => {
     try {
       await deleteTelegramChannel(id);
+      toast('Canal eliminado', 'success');
       const data = await getTelegramChannels();
       setChannels(data.items || data.data || data.channels || data || []);
     } catch (err) {
+      toast('Error al eliminar el canal', 'error');
       console.error('Error eliminando canal:', err);
     }
   };
@@ -113,19 +117,6 @@ export default function Settings() {
       <div className="page-header">
         <h1 className="page-title">Configuración</h1>
       </div>
-
-      {message && (
-        <div
-          className={cn(
-            'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
-            message.type === 'success'
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          )}
-        >
-          {message.text}
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* General Settings */}

@@ -115,6 +115,38 @@ async def update_source(
     return source
 
 
+@router.post("/{source_id}/pause", response_model=SourceResponse)
+async def pause_source(
+    source_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    source = await session.get(Source, source_id)
+    if not source:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuente no encontrada")
+    source.is_paused = True
+    source.is_active = False
+    await session.flush()
+    await session.refresh(source)
+    return source
+
+
+@router.post("/{source_id}/activate", response_model=SourceResponse)
+async def activate_source(
+    source_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    source = await session.get(Source, source_id)
+    if not source:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuente no encontrada")
+    source.is_paused = False
+    source.is_active = True
+    await session.flush()
+    await session.refresh(source)
+    return source
+
+
 @router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_source(
     source_id: uuid.UUID,

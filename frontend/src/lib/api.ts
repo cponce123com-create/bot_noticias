@@ -30,10 +30,36 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      // No usar window.location.href: eso causa page load completo y 404 en static sites.
-      // useRequireAuth en hooks/useAuth.tsx redirige via React Router automaticamente.
+    if (error.response) {
+      const { status, data } = error.response;
+      const detail = data?.detail || data?.message || '';
+
+      switch (status) {
+        case 401:
+          localStorage.removeItem('token');
+          // No usar window.location.href: eso causa page load completo y 404 en static sites.
+          // useRequireAuth en hooks/useAuth.tsx redirige via React Router automaticamente.
+          break;
+        case 404:
+          console.warn(`[API 404] Recurso no encontrado: ${error.config?.url}`, detail);
+          break;
+        case 409:
+          console.warn(`[API 409] Conflicto: ${detail}`);
+          break;
+        case 422:
+          console.warn(`[API 422] Error de validación:`, data?.detail || data);
+          break;
+        case 500:
+          console.error(`[API 500] Error interno del servidor:`, detail);
+          break;
+        default:
+          console.error(`[API ${status}] Error inesperado:`, detail);
+      }
+    } else if (error.request) {
+      // Network error (no response received)
+      console.error('[API] Error de red: no se pudo conectar con el servidor.', error.message);
+    } else {
+      console.error('[API] Error al realizar la solicitud:', error.message);
     }
     return Promise.reject(error);
   }

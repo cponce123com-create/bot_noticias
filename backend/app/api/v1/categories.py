@@ -19,7 +19,7 @@ from backend.app.schemas.category import (
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("/", response_model=list[CategoryResponse])
+@router.get("", response_model=list[CategoryResponse])
 async def list_categories(
     is_active: Optional[bool] = Query(None),
     session: AsyncSession = Depends(get_session),

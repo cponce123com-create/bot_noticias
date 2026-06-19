@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { getStats, getNews } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { formatDate, truncate, cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
 
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [recentNews, setRecentNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('24h');
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadData() {
@@ -59,6 +61,7 @@ export default function Dashboard() {
         setStats(statsData);
         setRecentNews(newsData.items || newsData.data || newsData.news || []);
       } catch (err) {
+        toast('Error al cargar el panel', 'error');
         console.error('Error cargando dashboard:', err);
       } finally {
         setLoading(false);

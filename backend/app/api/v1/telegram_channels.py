@@ -34,7 +34,20 @@ async def create_telegram_channel(
     session: AsyncSession = Depends(get_session),
     _current_user: User = Depends(get_current_user),
 ):
-    chat_id = int(data.channel_id)
+    raw = data.channel_id.strip()
+    try:
+        chat_id = int(raw)
+    except ValueError:
+        if raw.startswith("@"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Usa el ID numérico del canal (negativo para canales públicos), no el @username. "
+                        "Ejemplo: -1001234567890",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"channel_id inválido: '{raw}'. Debe ser un número entero o un @username.",
+        )
 
     existing = await session.execute(
         select(TelegramChannel).where(TelegramChannel.chat_id == chat_id)
