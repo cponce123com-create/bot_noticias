@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '—';
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('es-PE', {
     day: 'numeric',
@@ -16,7 +17,8 @@ export function formatDate(dateString: string): string {
   }).format(date);
 }
 
-export function truncate(text: string, length: number = 100): string {
+export function truncate(text: string | null | undefined, length: number = 100): string {
+  if (!text) return '';
   if (text.length <= length) return text;
   return text.substring(0, length) + '...';
 }
