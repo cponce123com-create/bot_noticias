@@ -16,19 +16,13 @@ from backend.app.config import settings
 
 def sanitize_asyncpg_url(url: str) -> str:
     """
-    Elimina parametros de query string no soportados por asyncpg (sslmode, etc.)
-    y devuelve una URL limpia para create_async_engine.
+    Elimina TODOS los parametros de query string (?sslmode=require,
+    ?channel_binding=require, etc.) de la URL, ya que asyncpg no los soporta.
+    La configuracion SSL se pasa via connect_args a create_async_engine.
     """
     parsed = urlparse(url)
     if parsed.query:
-        allowed = []
-        for pair in parsed.query.split("&"):
-            if "=" in pair:
-                key, val = pair.split("=", 1)
-                if key.lower() != "sslmode":
-                    allowed.append(f"{key}={val}")
-            # parametros sin valor se descartan
-        parsed = parsed._replace(query="&".join(allowed))
+        parsed = parsed._replace(query="")
     return str(urlunparse(parsed))
 
 
