@@ -204,8 +204,8 @@ async def _publish_to_telegram(news: News) -> None:
     for channel in channels:
         try:
             if first_image:
-                # Enviar foto con caption
-                resp = httpx.post(
+                # Intentar con foto; si falla, enviar solo texto
+                photo_resp = httpx.post(
                     f"https://api.telegram.org/bot{token}/sendPhoto",
                     json={
                         "chat_id": channel.chat_id,
@@ -215,6 +215,25 @@ async def _publish_to_telegram(news: News) -> None:
                     },
                     timeout=30,
                 )
+                photo_data = photo_resp.json()
+                if photo_data.get("ok"):
+                    resp = photo_resp
+                else:
+                    logger.warning(
+                        "Foto fallo para %s (%s), enviando solo texto",
+                        channel.channel_name or channel.chat_id,
+                        photo_data.get("description", "error"),
+                    )
+                    resp = httpx.post(
+                        f"https://api.telegram.org/bot{token}/sendMessage",
+                        json={
+                            "chat_id": channel.chat_id,
+                            "text": text,
+                            "parse_mode": "HTML",
+                            "disable_web_page_preview": True,
+                        },
+                        timeout=15,
+                    )
             else:
                 # Solo texto
                 resp = httpx.post(

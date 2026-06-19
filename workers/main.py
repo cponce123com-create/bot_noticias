@@ -150,7 +150,7 @@ async def process_source(source_id: uuid.UUID):
                     INSERT INTO news (source_id, external_id, url, original_title, original_summary,
                                       author, published_at, images, language, status)
                     VALUES (:sid, :eid, :url, :title, :summary,
-                            :author, :published, :images::jsonb, :lang, 'pending_approval')
+                            :author, :published, CAST(:images AS jsonb), :lang, 'pending_approval')
                 """),
                 {
                     "sid": source_id, "eid": item["external_id"], "url": item["url"],
@@ -270,7 +270,7 @@ async def publish_pending():
                 lines.append("")
                 lines.append('\U0001F517 <a href="' + escaped_url + '">Leer mas</a>')
 
-                text = '\n'.join(lines)
+            text = '\n'.join(lines)
 
             # Obtener primera imagen
             first_image = None
@@ -283,7 +283,7 @@ async def publish_pending():
             for ch in channels:
                 try:
                     if first_image:
-                        resp = httpx.post(
+                        photo_resp = httpx.post(
                             f"https://api.telegram.org/bot{token}/sendPhoto",
                             json={
                                 "chat_id": ch.chat_id,
@@ -293,6 +293,24 @@ async def publish_pending():
                             },
                             timeout=30,
                         )
+                        photo_data = photo_resp.json()
+                        if photo_data.get("ok"):
+                            resp = photo_resp
+                        else:
+                            logger.warning(
+                                "Foto fallo para news %s (%s), enviando solo texto",
+                                news_id, photo_data.get("description", "error"),
+                            )
+                            resp = httpx.post(
+                                f"https://api.telegram.org/bot{token}/sendMessage",
+                                json={
+                                    "chat_id": ch.chat_id,
+                                    "text": text,
+                                    "parse_mode": "HTML",
+                                    "disable_web_page_preview": True,
+                                },
+                                timeout=15,
+                            )
                     else:
                         resp = httpx.post(
                             f"https://api.telegram.org/bot{token}/sendMessage",
