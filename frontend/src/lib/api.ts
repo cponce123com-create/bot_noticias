@@ -274,4 +274,3 @@ export async function scrapeNow() {
   return response.data;
 }
 
-export default api;
