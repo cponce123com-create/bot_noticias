@@ -1,18 +1,54 @@
 """
 Conexion asincrona a PostgreSQL (Neon) usando SQLAlchemy 2.0.
+Limpia la URL de parametros no soportados por asyncpg (como ?sslmode=require)
+y configura SSL via connect_args.
 """
 from __future__ import annotations
+
+import ssl
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.app.config import settings
 
+
+def sanitize_asyncpg_url(url: str) -> str:
+    """
+    Elimina parametros de query string no soportados por asyncpg (sslmode, etc.)
+    y devuelve una URL limpia para create_async_engine.
+    """
+    parsed = urlparse(url)
+    if parsed.query:
+        allowed = []
+        for pair in parsed.query.split("&"):
+            if "=" in pair:
+                key, val = pair.split("=", 1)
+                if key.lower() != "sslmode":
+                    allowed.append(f"{key}={val}")
+            # parametros sin valor se descartan
+        parsed = parsed._replace(query="&".join(allowed))
+    return str(urlunparse(parsed))
+
+
+def create_asyncpg_ssl_context() -> ssl.SSLContext:
+    """Crea un SSLContext para conexion segura a Neon via asyncpg."""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = True
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    return ctx
+
+
+# Sanitizar URL eliminando sslmode (no soportado por asyncpg)
+_safe_db_url = sanitize_asyncpg_url(settings.database_url)
+
 engine = create_async_engine(
-    settings.database_url,
+    _safe_db_url,
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_pre_ping=settings.db_pool_pre_ping,
+    connect_args={"ssl": create_asyncpg_ssl_context()},
     echo=False,
 )
 

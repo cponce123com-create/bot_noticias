@@ -21,7 +21,7 @@ from backend.app.schemas.source import (
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
-@router.get("/", response_model=SourceListResponse)
+@router.get("", response_model=SourceListResponse)
 async def list_sources(
     source_type: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(None),
@@ -70,7 +70,7 @@ async def get_source(
     return source
 
 
-@router.post("/", response_model=SourceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SourceResponse, status_code=status.HTTP_201_CREATED)
 async def create_source(
     data: SourceCreate,
     session: AsyncSession = Depends(get_session),

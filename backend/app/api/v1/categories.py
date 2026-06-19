@@ -32,7 +32,7 @@ async def list_categories(
     return result.scalars().all()
 
 
-@router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_category(
     data: CategoryCreate,
     session: AsyncSession = Depends(get_session),

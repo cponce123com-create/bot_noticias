@@ -22,7 +22,17 @@ async def ensure_admin_user():
         from sqlalchemy import text
         from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-        eng = create_async_engine(settings.database_url, echo=False)
+        from backend.app.core.database import (
+            create_asyncpg_ssl_context,
+            sanitize_asyncpg_url,
+        )
+
+        safe_url = sanitize_asyncpg_url(settings.database_url)
+        eng = create_async_engine(
+            safe_url,
+            echo=False,
+            connect_args={"ssl": create_asyncpg_ssl_context()},
+        )
         async with AsyncSession(eng) as session:
             result = await session.execute(
                 text("SELECT id FROM users WHERE email = :email"),
@@ -30,6 +40,7 @@ async def ensure_admin_user():
             )
             if not result.fetchone():
                 from backend.app.core.security import get_password_hash
+
                 await session.execute(
                     text("""
                         INSERT INTO users (username, email, password_hash, role, is_active)

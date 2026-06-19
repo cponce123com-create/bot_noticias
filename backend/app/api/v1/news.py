@@ -21,7 +21,7 @@ from backend.app.schemas.news import (
 router = APIRouter(prefix="/news", tags=["news"])
 
 
-@router.get("/", response_model=NewsListResponse)
+@router.get("", response_model=NewsListResponse)
 async def list_news(
     status_filter: Optional[str] = Query(None, alias="status"),
     source_id: Optional[uuid.UUID] = Query(None),
