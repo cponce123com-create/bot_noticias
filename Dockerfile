@@ -29,4 +29,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3
     CMD curl -f http://localhost:$PORT/health || exit 1
 
 # Start with uvicorn
+# NOTA: --workers 1 es intencional. El APScheduler corre dentro del proceso web.
+# Si se aumenta workers, los jobs del scheduler se duplicarian.
 CMD uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1

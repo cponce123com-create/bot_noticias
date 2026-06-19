@@ -76,6 +76,29 @@ async def create_source(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    import ipaddress
+    from urllib.parse import urlparse
+
+    # Validar que la URL no apunte a IPs internas (SSRF protection)
+    parsed = urlparse(data.config.get("feed_url", ""))
+    if parsed.hostname:
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="La URL no puede apuntar a una direccion interna",
+                )
+        except ValueError:
+            pass  # No es una IP, es un dominio - permitir
+        # Verificar dominios internos comunes
+        internal_domains = ("localhost", "127.0.0.1", "0.0.0.0", "metadata", ".internal", ".local")
+        if any(parsed.hostname.startswith(d) or parsed.hostname.endswith(d) for d in internal_domains):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La URL no puede apuntar a un dominio interno",
+            )
+
     source = Source(
         name=data.name,
         source_type=data.source_type,

@@ -1,19 +1,9 @@
--- =============================================================================
--- Noticiando.pe - Usuario administrador por defecto
--- Password: admin123 (generado con passlib bcrypt, 12 rounds)
--- 
--- PARA REGENERAR EL HASH:
---   from passlib.context import CryptContext
---   ctx = CryptContext(schemes=['bcrypt'], deprecated='auto')
---   print(ctx.hash('admin123'))
--- =============================================================================
-
+-- admin_user.sql - Crear usuario admin por defecto
+-- NOTA: La password se sincroniza desde ADMIN_PASSWORD del entorno al arrancar
+-- el backend via ensure_admin_user() en main.py.
+-- Este seed solo inserta si no existe, el hash se actualiza en runtime.
 INSERT INTO users (username, email, password_hash, role, is_active)
-VALUES (
-    'admin',
-    'admin@noticiando.pe',
-    '$2b$12$1qw7dFv88RF9F/MSidOLx.IrduEcwkn2CjMF4x9yx4v6OBl0TM/Nu',
-    'admin',
-    TRUE
-)
-ON CONFLICT (email) DO NOTHING;
+SELECT 'admin', 'admin@noticiando.pe',
+       '$2b$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0Y0Y0Y0Y0Y0Y0Y0Y0O',
+       'admin', true
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@noticiando.pe');
