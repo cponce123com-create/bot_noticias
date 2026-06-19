@@ -27,6 +27,7 @@ dependencies = [
     "scrapling>=0.4.0",
     "lxml>=5.2.0",
     "feedparser>=6.0.11",
+    "pyyaml>=6.0",
     "gnews>=0.2.0",
 
     # Email validation (pydantic depende de esto)

@@ -1,0 +1,39 @@
+# ── Filtros de contenido para limpieza de noticias ──
+# Los patrones se aplican sobre cada parrafo extraido.
+# Si un parrafo coincide, se descarta.
+# Formato: regex Python (re.search), (?i) para ignorar mayusculas
+
+# 📺 Promociones de TV/Streaming
+tv_streaming:
+  - 'te explicamos|a continuacion te mostramos|aqui te explicamos'
+  - 'mira el juego|disfruta del partido'
+  - 'aqui puedes disfrutar'
+  - 'si en caso tu opcion es seguirlo'
+  - 'debes suscribirte a la plataforma'
+  - 'se encuentra disponible en los pa[ií]ses'
+  - 'tamb[ií]n forma parte del servicio'
+  - 'estos son los precios'
+  - 'plan premium de disney|disney plus'
+  - 'esta disponible en los principales cableoperadores'
+  - 'ofrece acceso digital a la programacion'
+  - 'en algunos territorios, el acceso puede requerir'
+  - 'sujeto a disponibilidad regional'
+
+# 📱 Promociones de Redes Sociales/Canales
+social_media:
+  - 'canal oficial de whatsapp|siguenos en whatsapp|unirme al canal'
+  - 'recibe las noticias al instante'
+  - 'pic\.twitter\.com|t\.co/|facebook\.com|twitter\.com'
+  - 'no te pierdas|comparte esta|suscribete|siguenos'
+
+# ❓ Llamadas a la accion / Engagement
+engagement:
+  - '¿quieres ver|¿buscas|descubre como|entra aqui'
+  - 'te comparto todos los detalles'
+
+# 👤 Autoria y metadatos (se reemplazan por vacio, no se descarta el parrafo)
+autor_metadata:
+  - '^(✏|✍)\s*(por\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+.*'
+  - '^Redacción\s+\w+.*'
+  - '^Actualizado el.*'
+  - '^Agrega\s+\w+\s+en'

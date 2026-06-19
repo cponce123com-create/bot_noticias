@@ -161,68 +161,9 @@ async def scrape_article(article_url: str) -> dict:
 
 
 def _clean_paragraphs(paragraphs: list[str]) -> list[str]:
-    """Limpia y filtra parrafos dejando solo contenido editorial limpio.
-
-    Elimina:
-    - Promociones ('Te explicamos como seguir EN VIVO', 'A continuacion te mostramos')
-    - Hashtags (#TuVotoSeRespeta, #EG2026)
-    - Redes sociales (pic.twitter.com, siguelo en)
-    - Autoria en el texto ('por X', 'Redaccion X', '✏')
-    - Llamadas a la accion ('Comparte esta noticia', 'No te pierdas')
-    - Parrafos muy cortos o con poca sustancia
-    """
-    import re
-
-    # Patrones de parrafos no deseados
-    spam_patterns = [
-        r"(?i)(te explicamos|a continuacion te mostramos|aqui te explicamos)",
-        r"(?i)(no te pierdas|comparte esta|suscribete|siguenos)",
-        r"(?i)(¿quieres ver|¿buscas|descubre como|entra aqui)",
-        r"(?i)(te comparto todos los detalles)",
-        r"(?i)(aqui puedes disfrutar)",
-        r"(?i)(si en caso tu opcion es seguirlo)",
-        r"(?i)(debes suscribirte a la plataforma)",
-        r"(?i)(se encuentra disponible en los pa[ií]ses)",
-        r"(?i)(tamb[ií]n forma parte del servicio)",
-        r"(?i)(estos son los precios)",
-        r"(?i)(plan premium de disney|disney plus)",
-        r"(?i)(pic\.twitter\.com|t\.co/|facebook\.com|twitter\.com)",
-        r"(?i)(esta disponible en los principales cableoperadores)",
-        r"(?i)(ofrece acceso digital a la programacion)",
-        r"(?i)(en algunos territorios, el acceso puede requerir)",
-        r"(?i)(sujeto a disponibilidad regional)",
-        r"(?i)^(mira el juego|disfruta del partido)",
-        r"(?i)(canal oficial de whatsapp|siguenos en whatsapp|unirme al canal)",
-        r"(?i)(recibe las noticias al instante)",
-    ]
-
-    clean = []
-    for p in paragraphs:
-        # Eliminar hashtags del texto
-        p = re.sub(r'#[A-Za-z0-9_]+\s*', '', p)
-        # Eliminar "✏ por Autor" o similar
-        p = re.sub(r'^✏?\s*(por\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+.*', '', p)
-        p = re.sub(r'^Redacción\s+\w+.*', '', p)
-        p = re.sub(r'^Actualizado el.*', '', p)
-        p = re.sub(r'^Agrega\s+\w+\s+en', '', p)
-        p = p.strip()
-
-        # Saltar si quedo vacio
-        if not p or len(p) < 50:
-            continue
-
-        # Saltar si coincide con patrones de spam
-        is_spam = False
-        for pat in spam_patterns:
-            if re.search(pat, p):
-                is_spam = True
-                break
-        if is_spam:
-            continue
-
-        clean.append(p)
-
-    return clean
+    """Limpia parrafos usando el sistema centralizado de filtros (config/filters.yaml)."""
+    from backend.app.core.filters import apply_filters
+    return apply_filters(paragraphs)
 
 
 def _fetch_article(url: str) -> dict:
@@ -252,8 +193,8 @@ def _fetch_article(url: str) -> dict:
                 # causados por <strong>, <br>, <a> dentro del <p>
                 import re
                 text = re.sub(r'\s+', ' ', text).strip()
-            # Filtrar: minimo 40 chars (elimina nav/footer), maximo 1000 (elimina ads gigantes)
-            if 40 < len(text) < 1000:
+            # Filtrar: minimo 30 chars (elimina nav/footer), maximo 1000 (elimina ads gigantes)
+            if 30 < len(text) < 1000:
                 paragraphs.append(text)
         if paragraphs:
             break
