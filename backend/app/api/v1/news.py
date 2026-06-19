@@ -129,12 +129,14 @@ async def approve_news(
     await session.flush()
     await session.refresh(news)
 
-    # Publicar en Telegram si fue aprobada (error silencioso)
+    # Publicar en Telegram si fue aprobada
     if action in ("approve", "edit"):
         try:
+            logger.info("Publicando noticia %s en Telegram...", news.id)
             await _publish_news_to_telegram(news, session)
-        except Exception:
-            pass  # Error silencioso - la noticia ya quedo como publicada en DB
+            logger.info("Publicacion completada para noticia %s", news.id)
+        except Exception as e:
+            logger.error("Error publicando noticia %s en Telegram: %s", news.id, e, exc_info=True)
 
     return news
 
