@@ -161,7 +161,7 @@ async def scrape_article(article_url: str) -> dict:
 
 
 def _fetch_article(url: str) -> dict:
-    """Sincrono - ejecutado en thread pool."""
+    """Sincrono - ejecutado en thread pool. Extrae solo parrafos <p> del articulo."""
     result = {"full_text": "", "image_url": "", "author": ""}
 
     try:
@@ -173,19 +173,26 @@ def _fetch_article(url: str) -> dict:
 
     sel = Selector(resp.text, url=url)
 
-    # 1. Extraer cuerpo del articulo
+    # 1. Extraer solo parrafos <p> dentro del contenedor del articulo
+    paragraphs = []
     for css in BODY_SELECTORS:
-        body = sel.css(css)
-        if body:
-            text = body[0].get_all_text() if isinstance(body, list) else body.get_all_text()
-            if text:
-                # Limpiar espacios multiples y truncar
-                clean = re.sub(r'\s+', ' ', text).strip()
-                if len(clean) > 100:
-                    result["full_text"] = clean[:3000]
-                    break
+        container = sel.css(css)
+        if not container:
+            continue
+        # Obtener todos los <p> dentro del contenedor
+        for p in (container[0].css("p") if isinstance(container, list) else container.css("p")):
+            text = p.get_all_text().strip() if p else ""
+            # Filtrar: minimo 40 chars (elimina nav/footer), maximo 1000 (elimina ads gigantes)
+            if 40 < len(text) < 1000:
+                paragraphs.append(text)
+        if paragraphs:
+            break
 
-    # 2. Extraer imagen principal (og:image > primer img en articulo)
+    if paragraphs:
+        # Unir parrafos con doble salto de linea
+        result["full_text"] = "\n\n".join(paragraphs)[:3000]
+
+    # 2. Extraer imagen principal (og:image)
     og_image = sel.css("meta[property='og:image']")
     if og_image:
         result["image_url"] = og_image[0].attrib.get("content", "")
@@ -193,7 +200,7 @@ def _fetch_article(url: str) -> dict:
         for css in BODY_SELECTORS:
             img = sel.css(f"{css} img")
             if img:
-                src = img[0].attrib.get("src", "")
+                src = img[0].attrib.get("src", "") if isinstance(img, list) else img.attrib.get("src", "")
                 if src and src.startswith("http"):
                     result["image_url"] = src
                     break
