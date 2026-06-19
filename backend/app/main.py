@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
     """Lifecycle: startup y shutdown."""
     logger.info("Iniciando Noticiando.pe...")
 
-    if "localhost" in settings.database_url or "neon" in settings.database_url:
+    if settings.run_migrations:
         try:
             await init_db()
             logger.info("Base de datos inicializada")

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +23,8 @@ from backend.app.schemas.user import (
     UserLogin,
     UserResponse,
 )
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -49,7 +53,10 @@ async def register(data: UserCreate, session: AsyncSession = Depends(get_session
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, session: AsyncSession = Depends(get_session)):
+@limiter.limit("10/minute")
+async def login(
+    request: Request,
+    data: UserLogin, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 

@@ -63,3 +63,8 @@ class NewsApproveRequest(BaseModel):
     summary: Optional[str] = None
     category_id: Optional[int] = None
     notes: Optional[str] = None
+
+
+class RejectNewsRequest(BaseModel):
+    reason: Optional[str] = None
+    notes: Optional[str] = None

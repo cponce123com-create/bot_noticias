@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     scheduler_cleanup_interval: int = 1440
     scheduler_backup_interval: int = 43200
 
+    # ── Database — Migrations ──
+    run_migrations: bool = True
+
     # ── Logging ──
     log_level: str = "INFO"
     log_format: str = "json"

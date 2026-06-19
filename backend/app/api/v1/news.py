@@ -17,6 +17,7 @@ from backend.app.schemas.news import (
     NewsApproveRequest,
     NewsListResponse,
     NewsResponse,
+    RejectNewsRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -306,7 +307,7 @@ async def _publish_to_telegram(news: News) -> None:
 @router.post("/{news_id}/reject", response_model=NewsResponse)
 async def reject_news(
     news_id: uuid.UUID,
-    data: Optional[dict] = None,
+    data: Optional[RejectNewsRequest] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -319,8 +320,8 @@ async def reject_news(
 
     news.status = "rejected"
     news.reviewed_by = current_user.id
-    if data and data.get("reason"):
-        news.review_notes = data["reason"]
+    if data and data.reason:
+        news.review_notes = data.reason
 
     await session.flush()
     await session.refresh(news)
