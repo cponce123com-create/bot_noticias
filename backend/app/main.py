@@ -41,12 +41,13 @@ async def ensure_admin_user():
         )
         async with AsyncSession(eng) as session:
             result = await session.execute(
-                text("SELECT id FROM users WHERE email = :email"),
+                text("SELECT id, password_hash FROM users WHERE email = :email"),
                 {"email": settings.admin_email},
             )
-            if not result.fetchone():
-                from backend.app.core.security import get_password_hash
+            row = result.fetchone()
+            from backend.app.core.security import get_password_hash, verify_password
 
+            if not row:
                 await session.execute(
                     text("""
                         INSERT INTO users (username, email, password_hash, role, is_active)
@@ -61,7 +62,18 @@ async def ensure_admin_user():
                 await session.commit()
                 logger.info("Admin user created: %s", settings.admin_email)
             else:
-                logger.info("Admin user exists: %s", settings.admin_email)
+                # Verificar si la password cambió
+                stored_hash = row[1]
+                if not verify_password(settings.admin_password, stored_hash):
+                    new_hash = get_password_hash(settings.admin_password)
+                    await session.execute(
+                        text("UPDATE users SET password_hash = :pw WHERE email = :email"),
+                        {"pw": new_hash, "email": settings.admin_email},
+                    )
+                    await session.commit()
+                    logger.info("Admin password updated: %s", settings.admin_email)
+                else:
+                    logger.info("Admin user exists: %s", settings.admin_email)
         await eng.dispose()
     except Exception as e:
         logger.warning("Could not verify admin user: %s", e)
