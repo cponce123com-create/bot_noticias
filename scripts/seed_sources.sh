@@ -2,9 +2,10 @@
 # scripts/seed_sources.sh - Genera y ejecuta SQL para insertar fuentes RSS
 set -e
 
-DSN="postgresql://neondb_owner:npg_yY1WrIf0xSZB@ep-silent-sound-atcjifon-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+# Cargar DSN desde variable de entorno
+DSN="${DATABASE_URL_SYNC:-postgresql://localhost:5432/noticiando}"
 
-cat <<'SQLEOF' | nix-shell -p postgresql --run "psql "$DSN""
+cat <<'SQLEOF' | nix-shell -p postgresql --run "psql \"$DSN\""
 -- Fuentes RSS Peruanas
 INSERT INTO sources (name, source_type, config, country, language, priority, auto_publish, requires_approval, fetch_interval)
 SELECT * FROM (VALUES

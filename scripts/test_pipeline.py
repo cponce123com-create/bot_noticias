@@ -13,7 +13,8 @@ import feedparser
 import httpx
 import psycopg2
 
-DSN = "postgresql://neondb_owner:npg_yY1WrIf0xSZB@ep-silent-sound-atcjifon-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+from backend.app.config import settings
+DSN = settings.database_url_sync
 
 
 def get_source(conn, name: str):

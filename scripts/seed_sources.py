@@ -4,13 +4,15 @@ Uso: nix-shell -p postgresql --run '.venv/bin/python scripts/seed_sources.py'
 """
 from __future__ import annotations
 
+from backend.app.config import settings
+
 import json
 from pathlib import Path
 
 import psycopg2
 import yaml
 
-DSN = "postgresql://neondb_owner:npg_yY1WrIf0xSZB@ep-silent-sound-atcjifon-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DSN = settings.database_url_sync
 
 
 def seed():

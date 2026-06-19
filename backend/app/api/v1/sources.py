@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_session
-from backend.app.core.security import get_current_user
+from backend.app.core.security import get_admin_user
 from backend.app.models.source import Source
 from backend.app.models.user import User
 from backend.app.schemas.source import (
@@ -29,7 +29,7 @@ async def list_sources(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     query = select(Source)
     count_query = select(func.count(Source.id))
@@ -62,7 +62,7 @@ async def list_sources(
 async def get_source(
     source_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     source = await session.get(Source, source_id)
     if not source:

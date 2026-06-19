@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_session
-from backend.app.core.security import get_current_user
+from backend.app.core.security import get_admin_user
 from backend.app.models.telegram_channel import TelegramChannel
 from backend.app.models.user import User
 from backend.app.schemas.telegram_channel import (
@@ -68,7 +68,7 @@ async def _resolve_chat_id(raw: str) -> int:
 @router.get("", response_model=List[TelegramChannelResponse])
 async def list_telegram_channels(
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     result = await session.execute(select(TelegramChannel))
     channels = result.scalars().all()

@@ -31,7 +31,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("runner")
 
-DSN = "postgresql://neondb_owner:npg_yY1WrIf0xSZB@ep-silent-sound-atcjifon-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+from backend.app.config import settings
+DSN = settings.database_url_sync
 ADMIN_CHAT_ID = 6922534707
 
 # ── Categorias por keywords ─────────────────────────────────────────────────
@@ -300,7 +301,7 @@ async def publish_news(news_items: List[Dict], source_name: str, chat_id: int = 
         return 0
 
     from backend.app.config import settings
-    settings.telegram_bot_token = "8807852904:AAHLeIw0tJXqBSOFEoLrr3PFDF99UrdGs-E"
+    # Token cargado desde variable de entorno por settings
     settings.cloudinary_cloud_name = "dicudg2ok"
     settings.cloudinary_api_key = "528278259254476"
     settings.cloudinary_api_secret = "t_XiSjyrWLXUavZ5KjoorhxAs-8"
