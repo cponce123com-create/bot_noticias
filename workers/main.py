@@ -295,23 +295,8 @@ async def publish_pending():
             final_summary = summary or orig_summary or ""
 
             # Construir mensaje HTML
-            import html as html_mod
-            safe_title = html_mod.escape(final_title)
-            safe_summary = html_mod.escape(final_summary) if final_summary else ""
-
-            lines = [f"\U0001F4F0 <b>{safe_title}</b>"]
-            if safe_summary:
-                lines.append("")
-                lines.append(safe_summary)
-            if author:
-                lines.append("")
-                lines.append(f"\u270F {html_mod.escape(author)}")
-            if url:
-                escaped_url = url.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                lines.append("")
-                lines.append('\U0001F517 <a href="' + escaped_url + '">Leer mas</a>')
-
-            msg_text = '\n'.join(lines)
+            from backend.app.core.telegram_utils import build_telegram_message
+            msg_text = build_telegram_message(final_title, final_summary, url, author)
 
             # Obtener primera imagen
             first_image = None

@@ -175,6 +175,8 @@ async def approve_all_news(
     # Publicar en Telegram (en paralelo, sin bloquear la respuesta)
     import asyncio
 
+    background_tasks: set[asyncio.Task] = set()
+
     async def _publish_all():
         for news in pending:
             try:
@@ -182,7 +184,9 @@ async def approve_all_news(
             except Exception:
                 pass
 
-    asyncio.ensure_future(_publish_all())
+    task = asyncio.ensure_future(_publish_all())
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
     return {"approved": approved, "total": len(pending)}
 
@@ -232,25 +236,9 @@ async def _publish_to_telegram(news: News) -> None:
     url = news.url or ""
     author = news.author or ""
 
-    import html as html_mod
+    from backend.app.core.telegram_utils import build_telegram_message
 
-    safe_title = html_mod.escape(title)
-    safe_summary = html_mod.escape(summary) if summary else ""
-    safe_author = html_mod.escape(author) if author else ""
-
-    lines = [f"\U0001F4F0 <b>{safe_title}</b>"]
-    if safe_summary:
-        lines.append("")
-        lines.append(safe_summary)
-    if safe_author:
-        lines.append("")
-        lines.append(f"\u270F {safe_author}")
-    if url:
-        escaped_url = url.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        lines.append("")
-        lines.append(f"\U0001F517 <a href=\"{escaped_url}\">Leer mas</a>")
-
-    text = "\n".join(lines)
+    text = build_telegram_message(title, summary, url, author)
 
     import httpx
 

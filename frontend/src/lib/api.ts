@@ -1,13 +1,9 @@
 import axios from 'axios';
 
-// Detectar URL de la API en tiempo de ejecucion
-// En produccion (Render), setear VITE_API_URL sin trailing slash, ej:
-// VITE_API_URL=https://bot-noticias-dx2d.onrender.com
+// URL base: VITE_API_URL > mismo origen > fallback hardcoded
 const API_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api/v1`
-  : window.location.hostname === 'localhost'
-    ? '/api/v1'
-    : 'https://bot-noticias-dx2d.onrender.com/api/v1';
+  : `${window.location.origin}/api/v1`;
 
 const api = axios.create({
   baseURL: API_URL,
