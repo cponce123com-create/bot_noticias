@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Optional
 
@@ -101,7 +102,7 @@ async def approve_news(
     action = data.action if data else "approve"
 
     if action == "approve":
-        news.status = "approved"
+        news.status = "published"
         if data and data.title:
             news.title = data.title
         if data and data.summary:
@@ -111,7 +112,7 @@ async def approve_news(
     elif action == "reject":
         news.status = "rejected"
     elif action == "edit":
-        news.status = "approved"
+        news.status = "published"
         if data and data.title:
             news.title = data.title
         if data and data.summary:
@@ -127,7 +128,86 @@ async def approve_news(
 
     await session.flush()
     await session.refresh(news)
+
+    # Publicar en Telegram si fue aprobada (error silencioso)
+    if action in ("approve", "edit"):
+        try:
+            await _publish_news_to_telegram(news, session)
+        except Exception:
+            pass  # Error silencioso - la noticia ya quedo como publicada en DB
+
     return news
+
+
+async def _publish_news_to_telegram(news: News, session: AsyncSession) -> None:
+    """Publica una noticia aprobada a los canales de Telegram configurados."""
+    logger = logging.getLogger(__name__)
+    try:
+        from sqlalchemy import select as sql_select
+        from backend.app.models.telegram_channel import TelegramChannel
+
+        result = await session.execute(
+            sql_select(TelegramChannel).where(TelegramChannel.is_active == True)
+        )
+        channels = result.scalars().all()
+
+        if not channels:
+            logger.info("No hay canales de Telegram configurados para publicar")
+            return
+
+        # Cargar source si existe
+        from backend.app.models.source import Source
+        source = await session.get(Source, news.source_id) if news.source_id else None
+        source_name = source.name if source else ""
+
+        # Preparar y publicar
+        from workers.publishers.telegram_publisher import PublicationPayload, TelegramPublisher
+        from datetime import datetime, timezone
+
+        publisher = TelegramPublisher()
+
+        for channel in channels:
+            try:
+                payload = PublicationPayload(
+                    title=news.title or news.original_title or "",
+                    summary=news.summary or news.original_summary,
+                    url=news.url,
+                    hashtags=news.hashtags or [],
+                    category_slug="",
+                    images=news.images or [],
+                    news_id=str(news.id),
+                    published_at=datetime.now(timezone.utc),
+                    author=news.author,
+                )
+
+                if news.images:
+                    msg_id = await publisher.publish_with_image(channel.chat_id, payload)
+                else:
+                    msg_id = await publisher.publish_text_only(channel.chat_id, payload)
+
+                if msg_id:
+                    logger.info(
+                        "Publicado en canal %s (msg_id=%s)",
+                        channel.channel_name or channel.chat_id,
+                        msg_id,
+                    )
+                else:
+                    logger.warning(
+                        "No se pudo publicar en canal %s",
+                        channel.channel_name or channel.chat_id,
+                    )
+            except Exception as e:
+                logger.error(
+                    "Error publicando en canal %s: %s",
+                    channel.channel_name or channel.chat_id,
+                    e,
+                )
+    except ImportError as e:
+        logger.warning("No se pudo importar TelegramPublisher (puede faltar dependencia): %s", e)
+    except ValueError as e:
+        logger.warning("TelegramPublisher no disponible: %s", e)
+    except Exception as e:
+        logger.error("Error inesperado en publicacion Telegram: %s", e)
 
 
 @router.post("/{news_id}/reject", response_model=NewsResponse)
