@@ -1,6 +1,5 @@
 """Workers principal - Scheduler de scraping con APScheduler.
-
-Uso: nix-shell -p stdenv.cc.cc.lib zlib --run '.venv/bin/python workers/main.py'
+Usa el engine y async_session_factory del backend.
 """
 from __future__ import annotations
 
@@ -8,23 +7,24 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import settings
+from backend.app.core.database import async_session_factory
+from backend.app.models.news import News
+from backend.app.models.telegram_channel import TelegramChannel
 
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO),
                     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("workers")
 
-# Database engine (pooler URL para async)
-ASYNC_DSN = settings.database_url.replace("+asyncpg", "").replace("?sslmode=require", "?sslmode=require")
-engine = create_async_engine(settings.database_url, echo=False)
-
+MAX_CONCURRENT_SCRAPES = 5
+semaphore = asyncio.Semaphore(MAX_CONCURRENT_SCRAPES)
 
 async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[str, Any]]:
     """Scrapea un feed RSS y retorna items normalizados."""
@@ -38,7 +38,7 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
             import feedparser
             feed = feedparser.parse(resp.content)
 
-            for entry in feed.entries[:20]:  # max 20 por ciclo
+            for entry in feed.entries[:20]:
                 title = (entry.get("title") or "").strip()
                 if not title:
                     continue
@@ -72,7 +72,7 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                 if not images:
                     import re
                     summary_html = entry.get("summary", "") or ""
-                    img_match = re.search(r'<img[^>]+src=["'](https?://[^"']+)["']', summary_html)
+                    img_match = re.search(r"<img[^>]+src=[\"'](https?://[^\"']+)[\"']", summary_html)
                     if img_match:
                         images.append({"url": img_match.group(1), "type": "image/jpeg", "medium": "image"})
 
@@ -94,44 +94,57 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
 
 
 async def process_source(source_id: uuid.UUID):
-    """Pipeline completo para una fuente."""
-    async with AsyncSession(engine) as session:
+    """Pipeline completo para una fuente con dedup por batch."""
+    async with async_session_factory() as session:
         result = await session.execute(
             text("SELECT name, config->>'feed_url' as url FROM sources WHERE id = :id AND is_active = true AND is_paused = false"),
             {"id": source_id}
         )
         row = result.fetchone()
         if not row:
-            logger.info("Source %s no activa o no encontrada", source_id)
             return
 
         name, feed_url = row
         logger.info("Procesando: %s (%s)", name, feed_url)
 
         items = await scrape_rss_source(source_id, feed_url)
-        logger.info("  Items encontrados: %d", len(items))
+        if not items:
+            logger.info("  Sin items para %s", name)
+            return
 
-        new_count = 0
-        for item in items:
-            # Check duplicado por URL
-            if item["url"]:
-                dup = await session.execute(
-                    text("SELECT id FROM news WHERE url = :url AND source_id = :sid LIMIT 1"),
-                    {"url": item["url"], "sid": source_id}
-                )
-                if dup.fetchone():
-                    continue
+        logger.info("  Items obtenidos: %d", len(items))
 
-            # Check duplicado por external_id
-            if item["external_id"]:
-                dup = await session.execute(
-                    text("SELECT id FROM news WHERE external_id = :eid AND source_id = :sid LIMIT 1"),
-                    {"eid": item["external_id"], "sid": source_id}
-                )
-                if dup.fetchone():
-                    continue
+        # Batch dedup: unica query para todos los URLs y external_ids
+        urls = [it["url"] for it in items if it["url"]]
+        ext_ids = [it["external_id"] for it in items if it["external_id"]]
 
-            # Insertar noticia
+        existing = set()
+        if urls:
+            rows = await session.execute(
+                text("SELECT url FROM news WHERE url = ANY(:urls) AND source_id = :sid"),
+                {"urls": urls, "sid": source_id}
+            )
+            existing.update(row[0] for row in rows if row[0])
+        if ext_ids:
+            rows = await session.execute(
+                text("SELECT external_id FROM news WHERE external_id = ANY(:eids) AND source_id = :sid"),
+                {"eids": ext_ids, "sid": source_id}
+            )
+            existing.update(row[0] for row in rows if row[0])
+
+        new_items = [it for it in items if it["url"] not in existing and it["external_id"] not in existing]
+
+        if not new_items:
+            logger.info("  Sin noticias nuevas para %s", name)
+            await session.execute(
+                text("UPDATE sources SET last_fetched_at = NOW(), error_count = 0 WHERE id = :id"),
+                {"id": source_id}
+            )
+            await session.commit()
+            return
+
+        # Insert masivo
+        for item in new_items:
             await session.execute(
                 text("""
                     INSERT INTO news (source_id, external_id, url, original_title, original_summary,
@@ -146,24 +159,18 @@ async def process_source(source_id: uuid.UUID):
                     "images": item["images"], "lang": item["language"],
                 }
             )
-            new_count += 1
 
-        # Actualizar last_fetched_at
         await session.execute(
             text("UPDATE sources SET last_fetched_at = NOW(), error_count = 0 WHERE id = :id"),
             {"id": source_id}
         )
         await session.commit()
-
-        if new_count > 0:
-            logger.info("  NOTICIAS NUEVAS: %d", new_count)
-        else:
-            logger.info("  Sin noticias nuevas")
+        logger.info("  NOTICIAS NUEVAS: %d para %s", len(new_items), name)
 
 
 async def scrape_all_sources():
-    """Scrapea todas las fuentes activas."""
-    async with AsyncSession(engine) as session:
+    """Scrapea todas las fuentes activas con concurrencia controlada."""
+    async with async_session_factory() as session:
         result = await session.execute(
             text("""
                 SELECT id, name, config->>'feed_url' as url
@@ -181,30 +188,137 @@ async def scrape_all_sources():
         logger.info("No hay fuentes para scrapear")
         return
 
-    logger.info("Scrapeando %d fuentes...", len(sources))
-    for src_id, name, url in sources:
-        try:
-            await process_source(src_id)
-        except Exception as exc:
-            logger.error("Error en %s: %s", name, exc)
-            async with AsyncSession(engine) as session:
-                await session.execute(
-                    text("UPDATE sources SET error_count = error_count + 1 WHERE id = :id"),
-                    {"id": src_id}
-                )
-                await session.commit()
+    logger.info("Scrapeando %d fuentes (max %d concurrentes)...", len(sources), MAX_CONCURRENT_SCRAPES)
+
+    async def _scrape_one(src_id, name, url):
+        async with semaphore:
+            try:
+                await process_source(src_id)
+            except Exception as exc:
+                logger.error("Error en %s: %s", name, exc)
+                async with async_session_factory() as session:
+                    await session.execute(
+                        text("UPDATE sources SET error_count = error_count + 1 WHERE id = :id"),
+                        {"id": src_id}
+                    )
+                    await session.commit()
+
+    tasks = [_scrape_one(sid, nm, u) for sid, nm, u in sources]
+    await asyncio.gather(*tasks)
+    logger.info("Scraping completado")
 
 
 async def publish_pending():
-    """Publica noticias aprobadas pendientes."""
-    # Por ahora solo log (implementacion completa requiere el publisher)
-    async with AsyncSession(engine) as session:
-        result = await session.execute(
-            text("SELECT count(*) FROM news WHERE status = 'approved'")
+    """Publica noticias aprobadas pendientes via API directa."""
+    token = settings.telegram_bot_token
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN no configurado")
+        return
+
+    async with async_session_factory() as session:
+        from sqlalchemy import select as sql_select
+
+        # Obtener canales activos
+        channels_result = await session.execute(
+            sql_select(TelegramChannel).where(TelegramChannel.is_active == True)
         )
-        count = result.scalar() or 0
-        if count > 0:
-            logger.info("Noticias pendientes de publicar: %d", count)
+        channels = channels_result.scalars().all()
+        if not channels:
+            logger.info("No hay canales activos")
+            return
+
+        # Obtener noticias aprobadas
+        result = await session.execute(
+            text("""
+                SELECT id, title, original_title, summary, original_summary,
+                       url, author, images, source_id
+                FROM news
+                WHERE status = 'approved'
+                ORDER BY fetched_at ASC
+                LIMIT 5
+            """)
+        )
+        news_list = result.fetchall()
+
+        if not news_list:
+            return
+
+        logger.info("Publicando %d noticias en %d canales...", len(news_list), len(channels))
+
+        import httpx
+        from datetime import datetime, timezone
+
+        for row in news_list:
+            news_id, title, orig_title, summary, orig_summary, url, author, images_json, source_id = row
+            final_title = title or orig_title or "Sin titulo"
+            final_summary = summary or orig_summary or ""
+
+            # Construir mensaje HTML
+            import html as html_mod
+            safe_title = html_mod.escape(final_title)
+            safe_summary = html_mod.escape(final_summary) if final_summary else ""
+
+            lines = [f"\U0001F4F0 <b>{safe_title}</b>"]
+            if safe_summary:
+                lines.append("")
+                lines.append(safe_summary)
+            if author:
+                lines.append("")
+                lines.append(f"\u270F {html_mod.escape(author)}")
+            if url:
+                escaped_url = url.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                lines.append("")
+                lines.append('\U0001F517 <a href="' + escaped_url + '">Leer mas</a>')
+
+                text = '\n'.join(lines)
+
+            # Obtener primera imagen
+            first_image = None
+            if images_json and isinstance(images_json, list):
+                for img in images_json:
+                    if isinstance(img, dict) and img.get("url"):
+                        first_image = img["url"]
+                        break
+
+            for ch in channels:
+                try:
+                    if first_image:
+                        resp = httpx.post(
+                            f"https://api.telegram.org/bot{token}/sendPhoto",
+                            json={
+                                "chat_id": ch.chat_id,
+                                "photo": first_image,
+                                "caption": text,
+                                "parse_mode": "HTML",
+                            },
+                            timeout=30,
+                        )
+                    else:
+                        resp = httpx.post(
+                            f"https://api.telegram.org/bot{token}/sendMessage",
+                            json={
+                                "chat_id": ch.chat_id,
+                                "text": text,
+                                "parse_mode": "HTML",
+                                "disable_web_page_preview": True,
+                            },
+                            timeout=15,
+                        )
+                    data = resp.json()
+                    if data.get("ok"):
+                        logger.info("Publicado news %s en canal %s", news_id, ch.channel_name or ch.chat_id)
+                    else:
+                        logger.warning("Error publicando news %s: %s", news_id, data.get("description"))
+                except Exception as e:
+                    logger.error("Error publicando news %s: %s", news_id, e)
+
+            # Marcar como publicada
+            await session.execute(
+                text("UPDATE news SET status = 'published', published_at = NOW() WHERE id = :id"),
+                {"id": news_id}
+            )
+
+        await session.commit()
 
 
 async def main():
@@ -214,16 +328,12 @@ async def main():
 
     scheduler = AsyncIOScheduler()
 
-    # Scrapear fuentes cada 5 minutos
     scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
-
-    # Publicar cada 2 minutos
     scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
 
     scheduler.start()
-    logger.info("Scheduler iniciado. Jobs: scrape_sources (5min), publish_news (2min)")
+    logger.info("Jobs: scrape_sources(5min), publish_news(2min)")
 
-    # Ejecutar primer ciclo inmediatamente
     await scrape_all_sources()
 
     try:
