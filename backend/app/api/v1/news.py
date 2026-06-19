@@ -19,6 +19,8 @@ from backend.app.schemas.news import (
     NewsResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/news", tags=["news"])
 
 
@@ -133,7 +135,7 @@ async def approve_news(
     if action in ("approve", "edit"):
         try:
             logger.info("Publicando noticia %s en Telegram...", news.id)
-            await _publish_news_to_telegram(news, session)
+            await _publish_to_telegram(news)
             logger.info("Publicacion completada para noticia %s", news.id)
         except Exception as e:
             logger.error("Error publicando noticia %s en Telegram: %s", news.id, e, exc_info=True)
@@ -141,75 +143,81 @@ async def approve_news(
     return news
 
 
-async def _publish_news_to_telegram(news: News, session: AsyncSession) -> None:
-    """Publica una noticia aprobada a los canales de Telegram configurados."""
-    logger = logging.getLogger(__name__)
-    try:
-        from sqlalchemy import select as sql_select
-        from backend.app.models.telegram_channel import TelegramChannel
+async def _publish_to_telegram(news: News) -> None:
+    """Publica una noticia a los canales de Telegram via API directa."""
+    from backend.app.config import settings
+    from backend.app.core.database import async_session_factory
+    from backend.app.models.telegram_channel import TelegramChannel
+    from sqlalchemy import select
 
+    token = settings.telegram_bot_token
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN no configurado, no se puede publicar")
+        return
+
+    async with async_session_factory() as session:
         result = await session.execute(
-            sql_select(TelegramChannel).where(TelegramChannel.is_active == True)
+            select(TelegramChannel).where(TelegramChannel.is_active == True)
         )
         channels = result.scalars().all()
 
-        if not channels:
-            logger.info("No hay canales de Telegram configurados para publicar")
-            return
+    if not channels:
+        logger.info("No hay canales de Telegram activos para publicar")
+        return
 
-        # Cargar source si existe
-        from backend.app.models.source import Source
-        source = await session.get(Source, news.source_id) if news.source_id else None
-        source_name = source.name if source else ""
+    # Construir mensaje
+    title = news.title or news.original_title or "Sin titulo"
+    summary = news.summary or news.original_summary
+    url = news.url or ""
+    author = news.author or ""
 
-        # Preparar y publicar
-        from workers.publishers.telegram_publisher import PublicationPayload, TelegramPublisher
-        from datetime import datetime, timezone
+    lines = [f"\U0001F4F0 *{title}*"]
+    if summary:
+        lines.append("")
+        lines.append(summary)
+    if author:
+        lines.append("")
+        lines.append(f"\u270F {author}")
+    if url:
+        lines.append("")
+        lines.append(f"\U0001F517 [Leer mas]({url})")
 
-        publisher = TelegramPublisher()
+    text = "\n".join(lines)
 
-        for channel in channels:
-            try:
-                payload = PublicationPayload(
-                    title=news.title or news.original_title or "",
-                    summary=news.summary or news.original_summary,
-                    url=news.url,
-                    hashtags=news.hashtags or [],
-                    category_slug="",
-                    images=news.images or [],
-                    news_id=str(news.id),
-                    published_at=datetime.now(timezone.utc),
-                    author=news.author,
-                )
+    import httpx
 
-                if news.images:
-                    msg_id = await publisher.publish_with_image(channel.chat_id, payload)
-                else:
-                    msg_id = await publisher.publish_text_only(channel.chat_id, payload)
-
-                if msg_id:
-                    logger.info(
-                        "Publicado en canal %s (msg_id=%s)",
-                        channel.channel_name or channel.chat_id,
-                        msg_id,
-                    )
-                else:
-                    logger.warning(
-                        "No se pudo publicar en canal %s",
-                        channel.channel_name or channel.chat_id,
-                    )
-            except Exception as e:
-                logger.error(
-                    "Error publicando en canal %s: %s",
+    for channel in channels:
+        try:
+            resp = httpx.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={
+                    "chat_id": channel.chat_id,
+                    "text": text,
+                    "parse_mode": "MarkdownV2",
+                    "disable_web_page_preview": True,
+                },
+                timeout=15,
+            )
+            data = resp.json()
+            if data.get("ok"):
+                msg_id = data["result"]["message_id"]
+                logger.info(
+                    "Publicado en canal %s (msg_id=%s)",
                     channel.channel_name or channel.chat_id,
-                    e,
+                    msg_id,
                 )
-    except ImportError as e:
-        logger.warning("No se pudo importar TelegramPublisher (puede faltar dependencia): %s", e)
-    except ValueError as e:
-        logger.warning("TelegramPublisher no disponible: %s", e)
-    except Exception as e:
-        logger.error("Error inesperado en publicacion Telegram: %s", e)
+            else:
+                logger.warning(
+                    "Error Telegram en canal %s: %s",
+                    channel.channel_name or channel.chat_id,
+                    data.get("description", "error desconocido"),
+                )
+        except Exception as e:
+            logger.error(
+                "Error publicando en canal %s: %s",
+                channel.channel_name or channel.chat_id,
+                e,
+            )
 
 
 @router.post("/{news_id}/reject", response_model=NewsResponse)
