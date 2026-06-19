@@ -14,6 +14,7 @@ export function formatDate(dateString: string | null | undefined): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/Lima',
   }).format(date);
 }
 

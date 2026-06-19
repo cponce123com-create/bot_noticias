@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     admin_email: str = "admin@noticiando.pe"
     admin_password: str
 
+    # ── Timezone ──
+    timezone: str = "America/Lima"
+
     # ── Scraper ──
     default_fetch_interval: int = 300
     max_scraper_retries: int = 5
