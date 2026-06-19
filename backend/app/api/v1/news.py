@@ -258,71 +258,46 @@ async def _publish_to_telegram(news: News) -> None:
                 first_image = img["url"]
                 break
 
-    for channel in channels:
-        try:
-            # Si hay imagen Y el texto no supera 950 chars, enviar con foto
-            if first_image and len(text) <= 950:
-                photo_resp = httpx.post(
-                    f"https://api.telegram.org/bot{token}/sendPhoto",
-                    json={
-                        "chat_id": channel.chat_id,
-                        "photo": first_image,
-                        "caption": text,
-                        "parse_mode": "HTML",
-                    },
-                    timeout=30,
-                )
-                photo_data = photo_resp.json()
-                if photo_data.get("ok"):
-                    resp = photo_resp
-                else:
-                    logger.warning(
-                        "Foto fallo para %s (%s), enviando solo texto",
-                        channel.channel_name or channel.chat_id,
-                        photo_data.get("description", "error"),
+    async with httpx.AsyncClient() as hc:
+        for channel in channels:
+            try:
+                if first_image and len(text) <= 950:
+                    r = await hc.post(
+                        f"https://api.telegram.org/bot{token}/sendPhoto",
+                        json={"chat_id": channel.chat_id, "photo": first_image,
+                              "caption": text, "parse_mode": "HTML"},
+                        timeout=30,
                     )
-                    resp = httpx.post(
+                    d = r.json()
+                    if d.get("ok"):
+                        pass
+                    else:
+                        logger.warning("Foto fallo %s: %s", channel.channel_name, d.get("description"))
+                        r = await hc.post(
+                            f"https://api.telegram.org/bot{token}/sendMessage",
+                            json={"chat_id": channel.chat_id, "text": text,
+                                  "parse_mode": "HTML", "disable_web_page_preview": True},
+                            timeout=15,
+                        )
+                else:
+                    r = await hc.post(
                         f"https://api.telegram.org/bot{token}/sendMessage",
-                        json={
-                            "chat_id": channel.chat_id,
-                            "text": text,
-                            "parse_mode": "HTML",
-                            "disable_web_page_preview": True,
-                        },
+                        json={"chat_id": channel.chat_id, "text": text,
+                              "parse_mode": "HTML", "disable_web_page_preview": True},
                         timeout=15,
                     )
-            else:
-                # Solo texto (tambien si hay foto pero texto muy largo para caption)
-                resp = httpx.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    json={
-                        "chat_id": channel.chat_id,
-                        "text": text,
-                        "parse_mode": "HTML",
-                        "disable_web_page_preview": True,
-                    },
-                    timeout=15,
-                )
-            data = resp.json()
-            if data.get("ok"):
-                msg_id = data["result"]["message_id"]
-                logger.info(
-                    "Publicado en canal %s (msg_id=%s)",
-                    channel.channel_name or channel.chat_id,
-                    msg_id,
-                )
-            else:
-                logger.warning(
-                    "Error Telegram en canal %s: %s",
-                    channel.channel_name or channel.chat_id,
-                    data.get("description", "error desconocido"),
-                )
-        except Exception as e:
-            logger.error(
-                "Error publicando en canal %s: %s",
-                channel.channel_name or channel.chat_id,
-                e,
-            )
+                data = r.json()
+                if data.get("ok"):
+                    logger.info("Publicado en canal %s (msg_id=%s)",
+                                channel.channel_name or channel.chat_id,
+                                data["result"]["message_id"])
+                else:
+                    logger.warning("Error Telegram en canal %s: %s",
+                                   channel.channel_name or channel.chat_id,
+                                   data.get("description", "error"))
+            except Exception as e:
+                logger.error("Error publicando en canal %s: %s",
+                             channel.channel_name or channel.chat_id, e)
 
 
 @router.post("/{news_id}/reject", response_model=NewsResponse)
