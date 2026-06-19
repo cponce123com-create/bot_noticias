@@ -4,6 +4,7 @@ Usa el engine y async_session_factory del backend.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -185,7 +186,7 @@ async def process_source(source_id: uuid.UUID):
                 "sid": source_id, "eid": item["external_id"], "url": item["url"],
                 "title": item["original_title"], "summary": item["original_summary"],
                 "author": item["author"], "published": item["published_at"],
-                "images": item["images"], "lang": item["language"],
+                "images": json.dumps(item["images"]), "lang": item["language"],
                 "status": status_value,
             }
             for item in new_items
