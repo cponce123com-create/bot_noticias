@@ -178,11 +178,17 @@ def _clean_paragraphs(paragraphs: list[str]) -> list[str]:
         r"(?i)(te explicamos|a continuacion te mostramos|aqui te explicamos)",
         r"(?i)(no te pierdas|comparte esta|suscribete|siguenos)",
         r"(?i)(¿quieres ver|¿buscas|descubre como|entra aqui)",
+        r"(?i)(te comparto todos los detalles)",
+        r"(?i)(aqui puedes disfrutar del partido)",
+        r"(?i)(si en caso tu opcion es seguirlo)",
+        r"(?i)(debes suscribirte a la plataforma)",
+        r"(?i)(se encuentra disponible en los paises)",
         r"(?i)(pic\.twitter\.com|t\.co/|facebook\.com|twitter\.com)",
         r"(?i)(esta disponible en los principales cableoperadores)",
         r"(?i)(ofrece acceso digital a la programacion)",
         r"(?i)(en algunos territorios, el acceso puede requerir)",
         r"(?i)(sujeto a disponibilidad regional)",
+        r"(?i)^(mira el juego|disfruta del partido)",
     ]
 
     clean = []
@@ -248,11 +254,12 @@ def _fetch_article(url: str) -> dict:
         # Limitar a 3 parrafos limpios
         result["full_text"] = "\n\n".join(clean[:3])
 
-    # 2. Extraer imagen principal (og:image)
+    # 2. Extraer imagen principal (og:image > primera img en pagina)
     og_image = sel.css("meta[property='og:image']")
     if og_image:
         result["image_url"] = og_image[0].attrib.get("content", "")
     if not result["image_url"]:
+        # Buscar en el contenedor del articulo
         for css in BODY_SELECTORS:
             img = sel.css(f"{css} img")
             if img:
@@ -260,6 +267,13 @@ def _fetch_article(url: str) -> dict:
                 if src and src.startswith("http"):
                     result["image_url"] = src
                     break
+    if not result["image_url"]:
+        # Fallback: cualquier img en la pagina que parezca noticia
+        for img in sel.css("img[src*='resizer'], img[src*='media'], img[src*='content'], img[src*='fotos']"):
+            src = img.attrib.get("src", "") if isinstance(img, (list, tuple)) else img.attrib.get("src", "")
+            if isinstance(src, str) and src.startswith("http") and "logo" not in src.lower():
+                result["image_url"] = src
+                break
 
     # 3. Extraer autor
     for css in AUTHOR_SELECTORS:
