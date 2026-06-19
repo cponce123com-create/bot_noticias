@@ -44,7 +44,7 @@ class NewsListResponse(BaseModel):
 
 
 class NewsApproveRequest(BaseModel):
-    action: str  # approve, reject, edit
+    action: str = "approve"  # approve, reject, edit
     title: Optional[str] = None
     summary: Optional[str] = None
     category_id: Optional[int] = None

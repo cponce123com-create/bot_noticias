@@ -90,7 +90,7 @@ async def get_approval_queue(
 @router.post("/{news_id}/approve", response_model=NewsResponse)
 async def approve_news(
     news_id: uuid.UUID,
-    data: NewsApproveRequest,
+    data: Optional[NewsApproveRequest] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -98,29 +98,53 @@ async def approve_news(
     if not news:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Noticia no encontrada")
 
-    if data.action == "approve":
+    action = data.action if data else "approve"
+
+    if action == "approve":
         news.status = "approved"
-        if data.title:
+        if data and data.title:
             news.title = data.title
-        if data.summary:
+        if data and data.summary:
             news.summary = data.summary
-        if data.category_id:
+        if data and data.category_id:
             news.category_id = data.category_id
-    elif data.action == "reject":
+    elif action == "reject":
         news.status = "rejected"
-    elif data.action == "edit":
+    elif action == "edit":
         news.status = "approved"
-        if data.title:
+        if data and data.title:
             news.title = data.title
-        if data.summary:
+        if data and data.summary:
             news.summary = data.summary
-        if data.category_id:
+        if data and data.category_id:
             news.category_id = data.category_id
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Accion invalida")
 
     news.reviewed_by = current_user.id
-    news.review_notes = data.notes
+    if data:
+        news.review_notes = data.notes
+
+    await session.flush()
+    await session.refresh(news)
+    return news
+
+
+@router.post("/{news_id}/reject", response_model=NewsResponse)
+async def reject_news(
+    news_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    news = await session.get(News, news_id)
+    if not news:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Noticia no encontrada",
+        )
+
+    news.status = "rejected"
+    news.reviewed_by = current_user.id
 
     await session.flush()
     await session.refresh(news)
