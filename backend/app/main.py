@@ -81,8 +81,29 @@ async def lifespan(app: FastAPI):
 
     await ensure_admin_user()
 
+    # ── Iniciar scheduler de background (scraping + publishing) ──
+    scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from workers.main import publish_pending, scrape_all_sources
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
+        scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
+        scheduler.start()
+        logger.info("Scheduler iniciado: scrape_sources(5min), publish_news(2min)")
+
+        # Primer ciclo inmediato
+        import asyncio
+        asyncio.ensure_future(scrape_all_sources())
+    except Exception as e:
+        logger.warning("No se pudo iniciar scheduler: %s", e)
+
     yield
 
+    # ── Shutdown ──
+    if scheduler:
+        scheduler.shutdown(wait=False)
     await engine.dispose()
     logger.info("Shutdown completo")
 
