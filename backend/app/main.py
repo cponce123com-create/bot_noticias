@@ -83,36 +83,39 @@ async def lifespan(app: FastAPI):
 
     # ── Iniciar scheduler de background (scraping + publishing) ──
     scheduler = None
-    try:
-        from apscheduler.schedulers.asyncio import AsyncIOScheduler
-        from workers.main import publish_pending, scrape_all_sources
-
-        scheduler = AsyncIOScheduler()
-        scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
-        scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
-        scheduler.start()
-        logger.info("Scheduler iniciado: scrape_sources(5min), publish_news(2min)")
-
-        # Primer ciclo inmediato
-        import asyncio
-        asyncio.ensure_future(scrape_all_sources())
-
-        # ── Jobs opcionales (requieren API keys) ──
+    if settings.enable_scheduler:
         try:
-            from workers.live_updates.football_monitor import check_live_matches
-            scheduler.add_job(check_live_matches, "interval", seconds=30, id="football_live")
-            logger.info("Job football_live agregado (c/30s)")
-        except Exception as e:
-            logger.debug("No se pudo agregar football_live: %s", e)
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from workers.main import publish_pending, scrape_all_sources
 
-        try:
-            from workers.daily_reports.morning_briefing import generate_briefing
-            scheduler.add_job(generate_briefing, "interval", hours=1, id="morning_briefing")
-            logger.info("Job morning_briefing agregado (c/1h)")
+            scheduler = AsyncIOScheduler()
+            scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
+            scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
+            scheduler.start()
+            logger.info("Scheduler iniciado: scrape_sources(5min), publish_news(2min)")
+
+            # Primer ciclo inmediato
+            import asyncio
+            asyncio.ensure_future(scrape_all_sources())
+
+            # ── Jobs opcionales (requieren API keys) ──
+            try:
+                from workers.live_updates.football_monitor import check_live_matches
+                scheduler.add_job(check_live_matches, "interval", seconds=30, id="football_live")
+                logger.info("Job football_live agregado (c/30s)")
+            except Exception as e:
+                logger.debug("No se pudo agregar football_live: %s", e)
+
+            try:
+                from workers.daily_reports.morning_briefing import generate_briefing
+                scheduler.add_job(generate_briefing, "interval", hours=1, id="morning_briefing")
+                logger.info("Job morning_briefing agregado (c/1h)")
+            except Exception as e:
+                logger.debug("No se pudo agregar morning_briefing: %s", e)
         except Exception as e:
-            logger.debug("No se pudo agregar morning_briefing: %s", e)
-    except Exception as e:
-        logger.warning("No se pudo iniciar scheduler: %s", e)
+            logger.warning("No se pudo iniciar scheduler: %s", e)
+    else:
+        logger.info("Scheduler deshabilitado via ENABLE_SCHEDULER=false")
 
     yield
 
@@ -130,17 +133,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS - permitir frontend en Render
+# CORS - leer origenes permitidos desde variable de entorno
+origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://noticiando-pe.onrender.com",
-        "https://noticiando-pe-web.onrender.com",
-        "https://bot-noticias-dx2d.onrender.com",
-        "https://bot-noticias-static.onrender.com",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

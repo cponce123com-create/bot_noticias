@@ -42,12 +42,13 @@ class Settings(BaseSettings):
     render_external_url: str = "http://localhost:8000"
 
     # ── Security ──
-    secret_key: str = "dev-secret-key-change-in-production"
+    secret_key: str
     access_token_expire_minutes: int = 1440
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
 
     # ── Default Admin ──
     admin_email: str = "admin@noticiando.pe"
-    admin_password: str = "admin123"
+    admin_password: str
 
     # ── Scraper ──
     default_fetch_interval: int = 300
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     playwright_timeout: int = 30000
 
     # ── Scheduler ──
+    enable_scheduler: bool = True
     scheduler_sources_interval: int = 5
     scheduler_cleanup_interval: int = 1440
     scheduler_backup_interval: int = 43200
@@ -90,6 +92,10 @@ class Settings(BaseSettings):
         self.media_dir.mkdir(parents=True, exist_ok=True)
         self.images_dir.mkdir(parents=True, exist_ok=True)
         self.videos_dir.mkdir(parents=True, exist_ok=True)
+        if not self.secret_key:
+            raise ValueError("SECRET_KEY no configurada")
+        if not self.admin_password:
+            raise ValueError("ADMIN_PASSWORD no configurada")
         return self
 
 

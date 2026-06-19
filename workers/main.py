@@ -29,13 +29,26 @@ semaphore = asyncio.Semaphore(MAX_CONCURRENT_SCRAPES)
 async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[str, Any]]:
     """Scrapea un feed RSS y retorna items normalizados."""
     items = []
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
         try:
-            resp = await client.get(feed_url, headers={
-                "User-Agent": "Mozilla/5.0 (NoticiandoBot/1.0; +https://noticiando.pe)"
-            })
-            resp.raise_for_status()
-            import feedparser
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(feed_url, headers={
+                    "User-Agent": "Mozilla/5.0 (NoticiandoBot/1.0; +https://noticiando.pe)"
+                })
+                resp.raise_for_status()
+            break  # exito
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:
+            if attempt < max_retries:
+                wait = 2 ** attempt  # backoff exponencial: 2, 4, 8 segundos
+                logger.warning("Intento %d/%d fallo para %s, reintentando en %ds: %s", attempt, max_retries, feed_url, wait, exc)
+                await asyncio.sleep(wait)
+            else:
+                logger.error("Error scraping %s tras %d intentos: %s", feed_url, max_retries, exc)
+                return items  # retorna lista vacia
+        except Exception as exc:
+            logger.error("Error scraping %s: %s", feed_url, exc, exc_info=True)
+            return items
             feed = feedparser.parse(resp.content)
 
             for entry in feed.entries[:20]:
@@ -351,6 +364,19 @@ async def publish_pending():
             )
 
         await session.commit()
+
+
+def get_scheduler() -> AsyncIOScheduler:
+    """Crea un scheduler con SQLAlchemyJobStore para persistencia."""
+    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    from backend.app.core.database import sanitize_asyncpg_url
+    from sqlalchemy import create_engine
+
+    sync_url = settings.database_url_sync or settings.database_url.replace(
+        "+asyncpg", ""
+    )
+    jobstore = SQLAlchemyJobStore(engine=create_engine(sync_url))
+    return AsyncIOScheduler(jobstores={"default": jobstore})
 
 
 async def main():
