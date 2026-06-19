@@ -114,25 +114,30 @@ async def process_source(source_id: uuid.UUID):
 
         logger.info("  Items obtenidos: %d", len(items))
 
-        # Batch dedup: unica query para todos los URLs y external_ids
+        # ── Dedup en lote: una sola query con OR ──
         urls = [it["url"] for it in items if it["url"]]
         ext_ids = [it["external_id"] for it in items if it["external_id"]]
 
-        existing = set()
-        if urls:
+        existing_keys = set()
+        if urls or ext_ids:
             rows = await session.execute(
-                text("SELECT url FROM news WHERE url = ANY(:urls) AND source_id = :sid"),
-                {"urls": urls, "sid": source_id}
+                text("""
+                    SELECT url, external_id FROM news
+                    WHERE source_id = :sid
+                      AND (url = ANY(:urls) OR external_id = ANY(:eids))
+                """),
+                {"sid": source_id, "urls": urls or [""], "eids": ext_ids or [""]},
             )
-            existing.update(row[0] for row in rows if row[0])
-        if ext_ids:
-            rows = await session.execute(
-                text("SELECT external_id FROM news WHERE external_id = ANY(:eids) AND source_id = :sid"),
-                {"eids": ext_ids, "sid": source_id}
-            )
-            existing.update(row[0] for row in rows if row[0])
+            for row in rows:
+                if row[0]:
+                    existing_keys.add(row[0])
+                if row[1]:
+                    existing_keys.add(row[1])
 
-        new_items = [it for it in items if it["url"] not in existing and it["external_id"] not in existing]
+        new_items = [
+            it for it in items
+            if it["url"] not in existing_keys and it["external_id"] not in existing_keys
+        ]
 
         if not new_items:
             logger.info("  Sin noticias nuevas para %s", name)
@@ -143,22 +148,25 @@ async def process_source(source_id: uuid.UUID):
             await session.commit()
             return
 
-        # Insert masivo
-        for item in new_items:
-            await session.execute(
-                text("""
-                    INSERT INTO news (source_id, external_id, url, original_title, original_summary,
-                                      author, published_at, images, language, status)
-                    VALUES (:sid, :eid, :url, :title, :summary,
-                            :author, :published, CAST(:images AS jsonb), :lang, 'pending_approval')
-                """),
-                {
-                    "sid": source_id, "eid": item["external_id"], "url": item["url"],
-                    "title": item["original_title"], "summary": item["original_summary"],
-                    "author": item["author"], "published": item["published_at"],
-                    "images": item["images"], "lang": item["language"],
-                }
-            )
+        # ── Insert en lote (executemany) ──
+        params = [
+            {
+                "sid": source_id, "eid": item["external_id"], "url": item["url"],
+                "title": item["original_title"], "summary": item["original_summary"],
+                "author": item["author"], "published": item["published_at"],
+                "images": item["images"], "lang": item["language"],
+            }
+            for item in new_items
+        ]
+        await session.execute(
+            text("""
+                INSERT INTO news (source_id, external_id, url, original_title, original_summary,
+                                  author, published_at, images, language, status)
+                VALUES (:sid, :eid, :url, :title, :summary,
+                        :author, :published, CAST(:images AS jsonb), :lang, 'pending_approval')
+            """),
+            params,
+        )
 
         await session.execute(
             text("UPDATE sources SET last_fetched_at = NOW(), error_count = 0 WHERE id = :id"),
