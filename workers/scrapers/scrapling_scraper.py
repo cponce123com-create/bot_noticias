@@ -189,6 +189,8 @@ def _clean_paragraphs(paragraphs: list[str]) -> list[str]:
         r"(?i)(en algunos territorios, el acceso puede requerir)",
         r"(?i)(sujeto a disponibilidad regional)",
         r"(?i)^(mira el juego|disfruta del partido)",
+        r"(?i)(canal oficial de whatsapp|siguenos en whatsapp|unirme al canal)",
+        r"(?i)(recibe las noticias al instante)",
     ]
 
     clean = []
