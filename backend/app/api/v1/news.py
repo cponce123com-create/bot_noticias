@@ -171,16 +171,23 @@ async def _publish_to_telegram(news: News) -> None:
     url = news.url or ""
     author = news.author or ""
 
-    lines = [f"\U0001F4F0 *{title}*"]
-    if summary:
+    import html as html_mod
+
+    safe_title = html_mod.escape(title)
+    safe_summary = html_mod.escape(summary) if summary else ""
+    safe_author = html_mod.escape(author) if author else ""
+
+    lines = [f"\U0001F4F0 <b>{safe_title}</b>"]
+    if safe_summary:
         lines.append("")
-        lines.append(summary)
-    if author:
+        lines.append(safe_summary)
+    if safe_author:
         lines.append("")
-        lines.append(f"\u270F {author}")
+        lines.append(f"\u270F {safe_author}")
     if url:
+        escaped_url = url.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         lines.append("")
-        lines.append(f"\U0001F517 [Leer mas]({url})")
+        lines.append(f"\U0001F517 <a href=\"{escaped_url}\">Leer mas</a>")
 
     text = "\n".join(lines)
 
@@ -193,7 +200,7 @@ async def _publish_to_telegram(news: News) -> None:
                 json={
                     "chat_id": channel.chat_id,
                     "text": text,
-                    "parse_mode": "MarkdownV2",
+                    "parse_mode": "HTML",
                     "disable_web_page_preview": True,
                 },
                 timeout=15,
