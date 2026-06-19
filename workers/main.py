@@ -55,6 +55,9 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                 title = (entry.get("title") or "").strip()
                 if not title:
                     continue
+                # Saltar comandos de Telegram (empiezan con /)
+                if title.startswith("/"):
+                    continue
 
                 link = entry.get("link", "")
                 summary = ""
