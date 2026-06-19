@@ -80,6 +80,11 @@ class Settings(BaseSettings):
             return []
         return [p.strip() for p in self.proxy_list.split(",") if p.strip()]
 
+    # ── APIs externas ──
+    football_api_key: str = ""
+    weather_api_key: str = ""
+    exchange_api_key: str = ""
+
     @model_validator(mode="after")
     def _ensure_media_dirs(self) -> "Settings":
         self.media_dir.mkdir(parents=True, exist_ok=True)

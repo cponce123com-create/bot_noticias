@@ -96,6 +96,21 @@ async def lifespan(app: FastAPI):
         # Primer ciclo inmediato
         import asyncio
         asyncio.ensure_future(scrape_all_sources())
+
+        # ── Jobs opcionales (requieren API keys) ──
+        try:
+            from workers.live_updates.football_monitor import check_live_matches
+            scheduler.add_job(check_live_matches, "interval", seconds=30, id="football_live")
+            logger.info("Job football_live agregado (c/30s)")
+        except Exception as e:
+            logger.debug("No se pudo agregar football_live: %s", e)
+
+        try:
+            from workers.daily_reports.morning_briefing import generate_briefing
+            scheduler.add_job(generate_briefing, "interval", hours=1, id="morning_briefing")
+            logger.info("Job morning_briefing agregado (c/1h)")
+        except Exception as e:
+            logger.debug("No se pudo agregar morning_briefing: %s", e)
     except Exception as e:
         logger.warning("No se pudo iniciar scheduler: %s", e)
 
