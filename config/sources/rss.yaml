@@ -120,3 +120,39 @@ sources:
     auto_publish: false
     requires_approval: true
     category: "internacional"
+
+  - name: "El Mundo"
+    url: "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml"
+    country: "Internacional"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "internacional"
+
+  - name: "Exitosa"
+    url: "https://exitosanoticias.pe/feed/"
+    country: "Peru"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Diario Correo"
+    url: "https://diariocorreo.pe/arc/outboundfeeds/rss/?outputType=xml"
+    country: "Peru"
+    language: "es"
+    priority: 7
+    auto_publish: false
+    requires_approval: true
+    category: "general"
+
+  - name: "Ojo"
+    url: "https://ojo.pe/arc/outboundfeeds/rss/?outputType=xml"
+    country: "Peru"
+    language: "es"
+    priority: 6
+    auto_publish: false
+    requires_approval: true
+    category: "general"
