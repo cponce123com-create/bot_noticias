@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,8 +16,53 @@ from backend.app.schemas.telegram_channel import (
     TelegramChannelCreate,
     TelegramChannelResponse,
 )
+from backend.app.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/telegram-channels", tags=["telegram-channels"])
+
+
+async def _resolve_chat_id(raw: str) -> int:
+    \"\"\"Convierte un @username a chat_id numerico usando la API de Telegram.\"\"\"
+    if raw.startswith("@"):
+        username = raw.lstrip("@")
+        token = settings.telegram_bot_token
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede resolver @username: TELEGRAM_BOT_TOKEN no está configurado. "
+                        "Configúralo o usa el ID numérico del canal directamente.",
+            )
+        try:
+            import httpx
+            url = f"https://api.telegram.org/bot{token}/getChat"
+            resp = httpx.post(url, json={"chat_id": f"@{username}"}, timeout=10)
+            data = resp.json()
+            if not data.get("ok"):
+                error_desc = data.get("description", "error desconocido")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No se pudo encontrar el canal @{username}: {error_desc}. "
+                            f"Verifica que el bot esté agregado como administrador del canal @{username}.",
+                )
+            chat_id = data["result"]["id"]
+            logger.info("Resuelto @%s → chat_id=%s", username, chat_id)
+            return chat_id
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"No se pudo conectar con Telegram para resolver @{username}: {e}",
+            )
+    try:
+        return int(raw)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{raw}' no es un número válido ni un @username. "
+                    "Ingresa el ID numérico del canal (ej: -1001234567890) "
+                    "o un @username (el bot debe ser miembro del canal).",
+        )
 
 
 @router.get("", response_model=List[TelegramChannelResponse])
@@ -34,20 +81,7 @@ async def create_telegram_channel(
     session: AsyncSession = Depends(get_session),
     _current_user: User = Depends(get_current_user),
 ):
-    raw = data.channel_id.strip()
-    try:
-        chat_id = int(raw)
-    except ValueError:
-        if raw.startswith("@"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Usa el ID numérico del canal (negativo para canales públicos), no el @username. "
-                        "Ejemplo: -1001234567890",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"channel_id inválido: '{raw}'. Debe ser un número entero o un @username.",
-        )
+    chat_id = await _resolve_chat_id(data.channel_id.strip())
 
     existing = await session.execute(
         select(TelegramChannel).where(TelegramChannel.chat_id == chat_id)

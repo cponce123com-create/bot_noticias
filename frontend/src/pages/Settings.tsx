@@ -318,7 +318,7 @@ export default function Settings() {
                 setChannelForm({ ...channelForm, channel_id: e.target.value })
               }
               className="input-field font-mono"
-              placeholder="@canal o -100123456789"
+                            placeholder="@canal o -1001234567890 (el bot debe ser admin)"
             />
           </div>
         </div>
