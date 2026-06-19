@@ -13,7 +13,7 @@ sources:
     category: "general"
 
   - name: "Gestion"
-    url: "https://gestion.pe/arcio/rss/"
+    url: "https://gestion.pe/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 9
@@ -22,7 +22,7 @@ sources:
     category: "economia"
 
   - name: "El Comercio"
-    url: "https://elcomercio.pe/arcio/rss/"
+    url: "https://elcomercio.pe/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 9
@@ -40,7 +40,7 @@ sources:
     category: "general"
 
   - name: "Peru21"
-    url: "https://peru21.pe/arcio/rss/"
+    url: "https://peru21.pe/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 7
@@ -49,7 +49,7 @@ sources:
     category: "general"
 
   - name: "La Republica"
-    url: "https://larepublica.pe/rss/"
+    url: "https://larepublica.pe/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 8
@@ -58,7 +58,7 @@ sources:
     category: "general"
 
   - name: "Depor"
-    url: "https://depor.com/arcio/rss/"
+    url: "https://depor.com/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 6
@@ -67,7 +67,7 @@ sources:
     category: "deportes"
 
   - name: "El Bocón"
-    url: "https://elbocon.pe/rss/"
+    url: "https://elbocon.pe/arc/outboundfeeds/rss/?outputType=xml"
     country: "Peru"
     language: "es"
     priority: 5
@@ -77,7 +77,7 @@ sources:
 
   # === INTERNACIONAL ===
   - name: "BBC Mundo"
-    url: "https://www.bbc.com/mundo/index.xml"
+    url: "https://feeds.bbci.co.uk/mundo/rss.xml"
     country: "Internacional"
     language: "es"
     priority: 8
@@ -86,16 +86,7 @@ sources:
     category: "internacional"
 
   - name: "Reuters"
-    url: "https://www.reutersagency.com/feed/"
-    country: "Internacional"
-    language: "en"
-    priority: 8
-    auto_publish: false
-    requires_approval: true
-    category: "internacional"
-
-  - name: "AP News"
-    url: "https://rsshub.app/apnews/topics/apf-topnews"
+    url: "https://www.reuters.com/arc/outboundfeeds/newsletter-rss/"
     country: "Internacional"
     language: "en"
     priority: 8

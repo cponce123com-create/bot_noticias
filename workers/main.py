@@ -76,13 +76,17 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                     if img_match:
                         images.append({"url": img_match.group(1), "type": "image/jpeg", "medium": "image"})
 
+                # Saltar items sin imagen
+                if not images:
+                    continue
+
                 entry_id = entry.get("id") or entry.get("guid") or link
 
                 items.append({
                     "external_id": entry_id,
                     "url": link,
                     "original_title": title,
-                    "original_summary": summary[:300],
+                    "original_summary": summary[:2000],
                     "author": author,
                     "published_at": published,
                     "images": images,
