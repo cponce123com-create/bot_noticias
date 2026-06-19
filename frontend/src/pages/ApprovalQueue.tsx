@@ -8,7 +8,7 @@ import {
   Inbox,
   Loader2,
 } from 'lucide-react';
-import { getApprovalQueue, approveNews, rejectNews } from '../lib/api';
+import { getApprovalQueue, approveNews, approveAllNews, rejectNews } from '../lib/api';
 import { useToast } from '../hooks/useToast';
 import { formatDate, truncate, cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
@@ -36,6 +36,7 @@ export default function ApprovalQueue() {
   const [editSummary, setEditSummary] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [processing, setProcessing] = useState<number | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
   const { toast } = useToast();
 
   const loadItems = async () => {
@@ -84,6 +85,20 @@ export default function ApprovalQueue() {
     }
   };
 
+  const handleApproveAll = async () => {
+    setApprovingAll(true);
+    try {
+      const result = await approveAllNews();
+      toast(`Se aprobaron ${result.approved} noticias`, 'success');
+      loadItems();
+    } catch (err) {
+      toast('Error al aprobar todas las noticias', 'error');
+      console.error('Error aprobando todas:', err);
+    } finally {
+      setApprovingAll(false);
+    }
+  };
+
   const handleEditApprove = async () => {
     if (!editItem) return;
     setProcessing(editItem.id);
@@ -128,8 +143,24 @@ export default function ApprovalQueue() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Cola de aprobación</h1>
-        <div className="text-sm text-gray-500">
-          {items.length} noticia(s) pendiente(s)
+        <div className="flex items-center gap-3">
+          {items.length > 0 && (
+            <button
+              onClick={handleApproveAll}
+              disabled={approvingAll}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {approvingAll ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCircle className="w-3.5 h-3.5" />
+              )}
+              Aprobar todo ({items.length})
+            </button>
+          )}
+          <div className="text-sm text-gray-500">
+            {items.length} noticia(s) pendiente(s)
+          </div>
         </div>
       </div>
 

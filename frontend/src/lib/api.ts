@@ -214,6 +214,11 @@ export async function rejectNews(id: number, reason?: string) {
   return response.data;
 }
 
+export async function approveAllNews() {
+  const response = await api.post('/news/approve-all');
+  return response.data;
+}
+
 // Stats
 export async function getStats() {
   const response = await api.get('/stats');

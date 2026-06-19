@@ -143,6 +143,46 @@ async def approve_news(
     return news
 
 
+@router.post("/approve-all")
+async def approve_all_news(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Aprueba todas las noticias pendientes en una sola operacion."""
+    result = await session.execute(
+        select(News).where(News.status == "pending_approval").limit(50)
+    )
+    pending = result.scalars().all()
+
+    if not pending:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay noticias pendientes de aprobacion",
+        )
+
+    approved = 0
+    for news in pending:
+        news.status = "published"
+        news.reviewed_by = current_user.id
+        approved += 1
+
+    await session.flush()
+
+    # Publicar en Telegram (en paralelo, sin bloquear la respuesta)
+    import asyncio
+
+    async def _publish_all():
+        for news in pending:
+            try:
+                await _publish_to_telegram(news)
+            except Exception:
+                pass
+
+    asyncio.ensure_future(_publish_all())
+
+    return {"approved": approved, "total": len(pending)}
+
+
 async def _publish_to_telegram(news: News) -> None:
     """Publica una noticia a los canales de Telegram via API directa."""
     from backend.app.config import settings
