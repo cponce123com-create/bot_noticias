@@ -23,7 +23,6 @@ dependencies = [
     "python-multipart>=0.0.9",
 
     # Scraping
-    "httpx>=0.27.0",
     "beautifulsoup4>=4.12.0",
     "lxml>=5.2.0",
     "feedparser>=6.0.11",
@@ -47,7 +46,9 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "jinja2>=3.1.4",
     "aiofiles>=24.1.0",
-    "httpx>=0.27.0",
+    "tenacity>=8.2.0",
+    "slowapi>=0.1.9",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
