@@ -117,19 +117,74 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
     return items
 
 
+async def scrape_google_news_source(source_id: uuid.UUID, keyword: str) -> list[dict]:
+    """Scrapea Google News usando gnews."""
+    import asyncio
+    import re
+    from datetime import datetime, timezone
+
+    try:
+        items = await asyncio.to_thread(_fetch_gnews, keyword)
+    except Exception as e:
+        logger.warning("GNews fallo para '%s': %s", keyword, e)
+        return []
+
+    result = []
+    for article in items:
+        title = (article.get("title") or "").strip()
+        url = (article.get("url") or "").strip()
+        if not title or not url:
+            continue
+
+        description = (article.get("description") or "").strip()
+        pub_date = article.get("published date") or ""
+        publisher = (article.get("publisher") or {}).get("title", "") if isinstance(article.get("publisher"), dict) else (article.get("publisher") or "")
+
+        # Parsear fecha
+        published_at = datetime.now(timezone.utc)
+        if pub_date:
+            try:
+                from email.utils import parsedate_to_datetime
+                published_at = parsedate_to_datetime(pub_date)
+            except Exception:
+                pass
+
+        result.append({
+            "external_id": url,
+            "url": url,
+            "original_title": title[:300],
+            "original_summary": description[:2000],
+            "author": publisher,
+            "published_at": published_at,
+            "images": [],
+            "language": "es",
+        })
+
+    return result
+
+
+def _fetch_gnews(keyword: str) -> list[dict]:
+    """Sincrono - ejecutado en thread pool."""
+    from gnews import GNews
+    gn = GNews(language="es", country="Peru", max_results=10)
+    return gn.get_news(keyword)
+
+
 async def process_source(source_id: uuid.UUID):
     """Pipeline completo para una fuente con dedup por batch."""
     async with async_session_factory() as session:
         result = await session.execute(
-            text("SELECT name, config->>'feed_url' as url FROM sources WHERE id = :id AND is_active = true AND is_paused = false"),
+            text("SELECT name, source_type, config FROM sources WHERE id = :id AND is_active = true AND is_paused = false"),
             {"id": source_id}
         )
         row = result.fetchone()
         if not row:
             return
 
-        name, feed_url = row
-        logger.info("Procesando: %s (%s)", name, feed_url)
+        name, source_type, config = row
+        feed_url = config.get("feed_url", "") if isinstance(config, dict) else ""
+        keyword = config.get("keyword", "") if isinstance(config, dict) else ""
+        logger.info("Procesando: %s (%s)", name, feed_url or keyword)
 
         # Leer config: auto_approve
         cfg = await session.execute(
@@ -138,7 +193,10 @@ async def process_source(source_id: uuid.UUID):
         cfg_row = cfg.fetchone()
         auto_approve = cfg_row and cfg_row[0] in (True, "true", "True", "1")
 
-        items = await scrape_rss_source(source_id, feed_url)
+        if source_type == "google_news":
+            items = await scrape_google_news_source(source_id, keyword)
+        else:
+            items = await scrape_rss_source(source_id, feed_url)
         if not items:
             logger.info("  Sin items para %s", name)
             return
@@ -214,9 +272,9 @@ async def scrape_all_sources():
     async with async_session_factory() as session:
         result = await session.execute(
             text("""
-                SELECT id, name, config->>'feed_url' as url
+                SELECT id, name, config::text as config_json
                 FROM sources
-                WHERE source_type = 'rss' AND is_active = true AND is_paused = false
+                WHERE source_type IN ('rss', 'google_news') AND is_active = true AND is_paused = false
                   AND (cooldown_until IS NULL OR cooldown_until < NOW())
                   AND error_count < max_errors
                 ORDER BY priority DESC
@@ -231,7 +289,7 @@ async def scrape_all_sources():
 
     logger.info("Scrapeando %d fuentes (max %d concurrentes)...", len(sources), MAX_CONCURRENT_SCRAPES)
 
-    async def _scrape_one(src_id, name, url):
+    async def _scrape_one(src_id, name, cfg):
         async with semaphore:
             try:
                 await process_source(src_id)
@@ -244,7 +302,7 @@ async def scrape_all_sources():
                     )
                     await session.commit()
 
-    tasks = [_scrape_one(sid, nm, u) for sid, nm, u in sources]
+    tasks = [_scrape_one(sid, nm, "gnews" if "keyword" in json.loads(cfg) else "rss") for sid, nm, cfg in sources]
     await asyncio.gather(*tasks)
     logger.info("Scraping completado")
 
