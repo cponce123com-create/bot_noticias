@@ -76,9 +76,10 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                     if img_match:
                         images.append({"url": img_match.group(1), "type": "image/jpeg", "medium": "image"})
 
-                # Saltar items sin imagen
+                # Marcar items sin imagen para fetch posterior
+                requires_fetch = False
                 if not images:
-                    continue
+                    requires_fetch = True
 
                 entry_id = entry.get("id") or entry.get("guid") or link
 
@@ -91,6 +92,7 @@ async def scrape_rss_source(source_id: uuid.UUID, feed_url: str) -> List[Dict[st
                     "published_at": published,
                     "images": images,
                     "language": feed.feed.get("language", "es")[:2],
+                    "requires_image_fetch": requires_fetch,
                 })
         except Exception as exc:
             logger.error("Error scraping %s: %s", feed_url, exc)
@@ -352,26 +354,9 @@ async def publish_pending():
 
 
 async def main():
-    logger.info("=" * 50)
-    logger.info("Iniciando Noticiando.pe Workers")
-    logger.info("=" * 50)
-
-    scheduler = AsyncIOScheduler()
-
-    scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
-    scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
-
-    scheduler.start()
-    logger.info("Jobs: scrape_sources(5min), publish_news(2min)")
-
+    """Entry point standalone (usado solo para tests). El scheduler corre en backend/app/main.py."""
+    logger.info("Workers standalone: ejecutando un ciclo de scraping...")
     await scrape_all_sources()
-
-    try:
-        while True:
-            await asyncio.sleep(60)
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        logger.info("Deteniendo workers...")
-        scheduler.shutdown()
 
 
 if __name__ == "__main__":
