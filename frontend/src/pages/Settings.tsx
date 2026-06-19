@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Settings2, Bot, Globe, Loader2, Send } from 'lucide-react';
+import { Save, Settings2, Bot, Globe, Loader2, Send, Trash2 } from 'lucide-react';
 import { getSystemConfig, updateSystemConfig, getTelegramChannels, createTelegramChannel, deleteTelegramChannel } from '../lib/api';
 import Modal from '../components/Modal';
 import { cn } from '../lib/utils';
@@ -14,8 +14,12 @@ interface ConfigItem {
 interface Channel {
   id: number;
   name: string;
+  channel_name: string;
   channel_id: string;
+  chat_id: number;
+  channel_type: string;
   is_active: boolean;
+  created_at: string;
 }
 
 export default function Settings() {
@@ -191,30 +195,81 @@ export default function Settings() {
               No hay canales configurados
             </div>
           ) : (
-            <div className="space-y-2">
-              {channels.map((ch) => (
-                <div
-                  key={ch.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      'w-2 h-2 rounded-full',
-                      ch.is_active ? 'bg-green-500' : 'bg-gray-400'
-                    )} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{ch.name}</p>
-                      <p className="text-xs text-gray-500 font-mono">{ch.channel_id}</p>
+            <div className="space-y-3">
+              {channels.map((ch) => {
+                const displayName = ch.channel_name || ch.name || `Canal ${ch.chat_id}`;
+                const typeLabel = ch.channel_type === 'supergroup' ? 'Supergrupo'
+                  : ch.channel_type === 'group' ? 'Grupo'
+                  : ch.channel_type === 'channel' ? 'Canal'
+                  : ch.channel_type || '—';
+                const chatIdStr = String(ch.chat_id || ch.channel_id || '');
+                const createdDate = ch.created_at
+                  ? new Date(ch.created_at).toLocaleDateString('es-PE', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })
+                  : '—';
+
+                return (
+                  <div
+                    key={ch.id}
+                    className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white hover:border-primary-200 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
+                      {/* Status indicator */}
+                      <div className="flex flex-col items-center gap-1 pt-0.5">
+                        <div className={cn(
+                          'w-3 h-3 rounded-full ring-2 ring-offset-2',
+                          ch.is_active
+                            ? 'bg-green-500 ring-green-200'
+                            : 'bg-gray-300 ring-gray-100'
+                        )} />
+                        <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+                          {ch.is_active ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+
+                      {/* Channel info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
+                            {displayName}
+                          </h4>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 uppercase">
+                            {typeLabel}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                          <span className="font-mono">ID: {chatIdStr}</span>
+                          <span>·</span>
+                          <span>Desde {createdDate}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <button
+                        onClick={() => {
+                          if (ch.is_active) {
+                            // Opción: mostrar toast con info del canal
+                            toast(`Canal ${displayName} activo y conectado`, 'info');
+                          }
+                        }}
+                        className="p-2 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                        title="Ver información"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteChannel(ch.id)}
+                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Eliminar canal"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteChannel(ch.id)}
-                    className="text-red-400 hover:text-red-600 text-sm font-medium"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
