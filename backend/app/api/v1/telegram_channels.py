@@ -79,7 +79,7 @@ async def list_telegram_channels(
 async def create_telegram_channel(
     data: TelegramChannelCreate,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     chat_id = await _resolve_chat_id(data.channel_id.strip())
 

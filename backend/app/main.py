@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from backend.app.api.v1 import v1_router
 from backend.app.config import settings
@@ -160,7 +162,11 @@ app.add_middleware(
 async def health():
     return {"status": "ok", "version": "0.1.0", "bot": "@noticiando_pe_bot"}
 
-# API v1
+# API v1 - configure rate limiter
+from backend.app.api.v1.auth import limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.include_router(v1_router)
 
 

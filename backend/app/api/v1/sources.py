@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_session
-from backend.app.core.security import get_admin_user, get_current_user
+from backend.app.core.security import get_admin_user
 from backend.app.models.source import Source
 from backend.app.models.user import User
 from backend.app.schemas.source import (
@@ -74,7 +74,7 @@ async def get_source(
 async def create_source(
     data: SourceCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     import ipaddress
     from urllib.parse import urlparse
@@ -110,7 +110,7 @@ async def create_source(
         auto_publish=data.auto_publish,
         requires_approval=data.requires_approval,
         target_channels=data.target_channels,
-        created_by=current_user.id,
+        created_by=_current_user.id,
     )
     session.add(source)
     await session.flush()
@@ -123,13 +123,30 @@ async def update_source(
     source_id: uuid.UUID,
     data: SourceUpdate,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     source = await session.get(Source, source_id)
     if not source:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuente no encontrada")
 
+    # SSRF validation on update
     update_data = data.model_dump(exclude_unset=True)
+    feed_url = update_data.get("config", {}).get("feed_url", "") if isinstance(update_data.get("config"), dict) else ""
+    if feed_url:
+        import ipaddress
+        from urllib.parse import urlparse
+        parsed = urlparse(feed_url)
+        if parsed.hostname:
+            try:
+                ip = ipaddress.ip_address(parsed.hostname)
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La URL no puede apuntar a una direccion interna")
+            except ValueError:
+                pass
+            internal_domains = ("localhost", "127.0.0.1", "0.0.0.0", "metadata", ".internal", ".local")
+            if any(parsed.hostname.startswith(d) or parsed.hostname.endswith(d) for d in internal_domains):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La URL no puede apuntar a un dominio interno")
+
     for field, value in update_data.items():
         setattr(source, field, value)
 
@@ -142,7 +159,7 @@ async def update_source(
 async def pause_source(
     source_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     source = await session.get(Source, source_id)
     if not source:
@@ -158,7 +175,7 @@ async def pause_source(
 async def activate_source(
     source_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     source = await session.get(Source, source_id)
     if not source:
@@ -174,7 +191,7 @@ async def activate_source(
 async def delete_source(
     source_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     source = await session.get(Source, source_id)
     if not source:

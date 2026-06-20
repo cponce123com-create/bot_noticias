@@ -3,15 +3,15 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system deps
-RUN apt-get update && apt-get install -y --no-install-recommends 
-    build-essential 
-    libpq-dev 
-    curl 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e "."
 
 # Copy app code
 COPY backend/ backend/
@@ -24,8 +24,12 @@ COPY scripts/ scripts/
 # Create media dirs
 RUN mkdir -p media/images media/videos
 
+# Create non-root user
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser:appuser /app
+USER appuser
+
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
 # Start with uvicorn

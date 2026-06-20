@@ -33,7 +33,7 @@ logger = logging.getLogger("runner")
 
 from backend.app.config import settings
 DSN = settings.database_url_sync
-ADMIN_CHAT_ID = 6922534707
+ADMIN_CHAT_ID = None  # Configurar via settings o env
 
 # ── Categorias por keywords ─────────────────────────────────────────────────
 CATEGORY_KEYWORDS: Dict[str, List[str]] = {

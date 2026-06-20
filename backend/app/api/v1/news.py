@@ -178,9 +178,10 @@ async def approve_all_news(
     background_tasks: set[asyncio.Task] = set()
 
     async def _publish_all():
+        from workers.publishers.telegram_publisher import publish_single_news
         for news in pending:
             try:
-                await _publish_to_telegram(news)
+                await publish_single_news(news)
             except Exception:
                 pass
 
@@ -208,96 +209,12 @@ async def scrape_now(
         )
 
 
-async def _publish_to_telegram(news: News) -> None:
-    """Publica una noticia a los canales de Telegram via API directa."""
-    from backend.app.config import settings
-    from backend.app.core.database import async_session_factory
-    from backend.app.models.telegram_channel import TelegramChannel
-    from sqlalchemy import select
-
-    token = settings.telegram_bot_token
-    if not token:
-        logger.warning("TELEGRAM_BOT_TOKEN no configurado, no se puede publicar")
-        return
-
-    async with async_session_factory() as session:
-        result = await session.execute(
-            select(TelegramChannel).where(TelegramChannel.is_active == True)
-        )
-        channels = result.scalars().all()
-
-    if not channels:
-        logger.info("No hay canales de Telegram activos para publicar")
-        return
-
-    # Construir mensaje
-    title = news.title or news.original_title or "Sin titulo"
-    summary = news.summary or news.original_summary
-    url = news.url or ""
-    author = news.author or ""
-
-    from backend.app.core.telegram_utils import build_telegram_message
-
-    text = build_telegram_message(title, summary, url, author)
-
-    import httpx
-
-    # Obtener primera imagen si existe
-    first_image = None
-    if news.images and isinstance(news.images, list):
-        for img in news.images:
-            if isinstance(img, dict) and img.get("url"):
-                first_image = img["url"]
-                break
-
-    async with httpx.AsyncClient() as hc:
-        for channel in channels:
-            try:
-                if first_image and len(text) <= 950:
-                    r = await hc.post(
-                        f"https://api.telegram.org/bot{token}/sendPhoto",
-                        json={"chat_id": channel.chat_id, "photo": first_image,
-                              "caption": text, "parse_mode": "HTML"},
-                        timeout=30,
-                    )
-                    d = r.json()
-                    if d.get("ok"):
-                        pass
-                    else:
-                        logger.warning("Foto fallo %s: %s", channel.channel_name, d.get("description"))
-                        r = await hc.post(
-                            f"https://api.telegram.org/bot{token}/sendMessage",
-                            json={"chat_id": channel.chat_id, "text": text,
-                                  "parse_mode": "HTML", "disable_web_page_preview": True},
-                            timeout=15,
-                        )
-                else:
-                    r = await hc.post(
-                        f"https://api.telegram.org/bot{token}/sendMessage",
-                        json={"chat_id": channel.chat_id, "text": text,
-                              "parse_mode": "HTML", "disable_web_page_preview": True},
-                        timeout=15,
-                    )
-                data = r.json()
-                if data.get("ok"):
-                    logger.info("Publicado en canal %s (msg_id=%s)",
-                                channel.channel_name or channel.chat_id,
-                                data["result"]["message_id"])
-                else:
-                    logger.warning("Error Telegram en canal %s: %s",
-                                   channel.channel_name or channel.chat_id,
-                                   data.get("description", "error"))
-            except Exception as e:
-                logger.error("Error publicando en canal %s: %s",
-                             channel.channel_name or channel.chat_id, e)
-
-
 @router.post("/{news_id}/reject", response_model=NewsResponse)
 async def reject_news(
     news_id: uuid.UUID,
     data: Optional[RejectNewsRequest] = None,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     news = await session.get(News, news_id)
     if not news:

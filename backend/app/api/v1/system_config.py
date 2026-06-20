@@ -34,7 +34,7 @@ async def update_system_config(
     key: str,
     data: SystemConfigUpdate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     existing = await session.get(SystemConfig, key)
 

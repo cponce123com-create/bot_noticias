@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends
 
 # Install Python deps
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e "."
 
 # Copy backend code
 COPY backend/ backend/
@@ -57,5 +57,8 @@ RUN mkdir -p media/images media/videos
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 
     CMD curl -f http://localhost:$PORT/health || exit 1
+
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser:appuser /app /etc/nginx
+USER appuser
 
 CMD sh -c 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --workers 1 & nginx -g "daemon off;"'

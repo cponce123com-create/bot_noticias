@@ -41,11 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiLogin(email, password);
-    const token = data.access_token || data.token;
-    if (token) {
-      const { setAccessToken } = await import('../lib/api');
-      setAccessToken(token);
-    }
+    // Token is set via httpOnly cookie by the server, no need to extract from body
     setUser(data.user || data);
   }, []);
 
