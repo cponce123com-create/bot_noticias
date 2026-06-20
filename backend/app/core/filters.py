@@ -151,7 +151,7 @@ def apply_filters(paragraphs: list[str]) -> list[str]:
         # 1. Limpiar autoria/metadatos (re.sub)
         for pat, repl in cleanup_patterns:
             p = pat.sub(repl, p)
-        p = p.strip()
+            p = p.strip()  # strip after each match so ^ anchors work
 
         # 2b. Remover firma de autor + fecha al final del parrafo
         #     Patron: "✏ Nombre Apellido dd/mm/aaaa, hh:mm" o "✏ Redacción EC"
