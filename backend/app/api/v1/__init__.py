@@ -7,6 +7,7 @@ from backend.app.api.v1.sources import router as sources_router
 from backend.app.api.v1.stats import router as stats_router
 from backend.app.api.v1.system_config import router as system_config_router
 from backend.app.api.v1.filters import router as filters_router
+from backend.app.api.v1.telegram_channels import router as telegram_channels_router
 
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(auth_router)
