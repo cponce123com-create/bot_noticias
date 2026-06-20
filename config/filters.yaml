@@ -23,13 +23,14 @@ tv_streaming:
 social_media:
   - 'canal oficial de whatsapp|siguenos en whatsapp|unirme al canal'
   - 'recibe las noticias al instante'
-  - 'pic\.twitter\.com|t\.co/|facebook\.com|twitter\.com'
+  - '(https?://)?(pic\.twitter\.com|t\.co/|facebook\.com|twitter\.com|x\.com|instagram\.com|linkedin\.com|tiktok\.com|youtube\.com)'
   - 'no te pierdas|comparte esta|suscribete|siguenos'
 
 # ❓ Llamadas a la accion / Engagement
 engagement:
   - '¿quieres ver|¿buscas|descubre como|entra aqui'
   - 'te comparto todos los detalles'
+  - 'te invitamos a'
 
 # 👤 Autoria y metadatos (se reemplazan por vacio, no se descarta el parrafo)
 autor_metadata:
@@ -37,3 +38,34 @@ autor_metadata:
   - '^Redacción\s+\w+.*'
   - '^Actualizado el.*'
   - '^Agrega\s+\w+\s+en'
+
+# 🔗 Enlaces de "Leer mas" al final del texto
+leer_mas:
+  - '🔗.*Leer\s+mas'
+  - '🔗.*Leer\s+m[aá]s'
+  - 'Leer\s+m[aá]s.*original'
+  - '^\s*Leer\s+m[aá]s\s*$'
+
+# 📸 Bloques de Instagram / Redes Sociales (se descartan parrafos completos)
+instagram_embeds:
+  - 'Ver esta publicaci[oó]n en'
+  - 'Una publicaci[oó]n compartida por'
+  - 'Ver en Instagram'
+  - 'Sigue leyendo en'
+  - 'Entra aquí para'
+
+# 📰 Bloques de "MIRA:" o llamadas tipo sidebar
+sidebar_calls:
+  - '^MIRA:\s+.*'
+  - '^LEE\s+TAMBI[EÉ]N:.*'
+  - '^TE\s+PUEDE\s+INTERESAR:.*'
+  - '^NO\s+TE\s+PIERDAS:.*'
+  - '^TAMBI[EÉ]N\s+LEE:.*'
+
+# 🏷️ Hashtags sueltos al final de parrafos
+hashtags_sueltos:
+  - '#\w+'
+
+# 🔁 Titulos repetidos dentro del cuerpo
+titulos_repetidos:
+  - '^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+\d{4}:.*'

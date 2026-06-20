@@ -194,6 +194,15 @@ async def process_source(source_id: uuid.UUID):
             if it["url"] not in existing_keys and it["external_id"] not in existing_keys
         ]
 
+        # ── Limpiar texto de las nuevas noticias ──
+        from backend.app.core.filters import clean_text
+
+        for it in new_items:
+            raw_text = it.get("original_summary") or it.get("original_title") or ""
+            if raw_text:
+                cleaned = clean_text(raw_text)
+                it["original_summary"] = cleaned
+
         if not new_items:
             logger.info("  Sin noticias nuevas para %s", name)
             await session.execute(

@@ -5,6 +5,7 @@ sobrescribirse via BD (system_config o tabla dedicada).
 """
 from __future__ import annotations
 
+import html as html_mod
 import logging
 import os
 import re
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 FILTERS_PATH = Path(__file__).resolve().parent.parent.parent.parent / "config" / "filters.yaml"
 
 # Cache en memoria
-_filters_cache: dict[str, list[dict]] | None = None
+_filters_cache: dict[str, list[str]] | None = None
 
 
 def load_filters() -> dict[str, list[str]]:
@@ -62,7 +63,9 @@ def get_discard_patterns() -> list[re.Pattern]:
     """Retorna patrones compilados para DESCARTAR parrafos (spam)."""
     filters = load_filters()
     patterns = []
-    for category in ("tv_streaming", "social_media", "engagement"):
+    for category in ("tv_streaming", "social_media", "engagement",
+                     "leer_mas", "instagram_embeds", "sidebar_calls",
+                     "hashtags_sueltos", "titulos_repetidos"):
         for pat_str in filters.get(category, []):
             try:
                 patterns.append(re.compile(pat_str, re.IGNORECASE))
@@ -85,6 +88,66 @@ def get_cleanup_patterns() -> list[tuple[re.Pattern, str]]:
         except re.error as e:
             logger.warning("Patron invalido [%s]: %s", pat_str, e)
     return result
+
+
+def decode_html_entities(text: str) -> str:
+    """Decodifica entidades HTML del texto.
+
+    Convierte &#xf3; -> o, &#xe1; -> a, &amp; -> &, etc.
+
+    Args:
+        text: Texto con posibles entidades HTML
+
+    Returns:
+        Texto con entidades decodificadas
+    """
+    if not text:
+        return text
+
+    # Primero decodificar entidades numericas hex y decimal manualmente
+    # (html.unescape a veces no maneja todas correctamente)
+    text = re.sub(r'&#x([0-9a-fA-F]+);', lambda m: chr(int(m.group(1), 16)), text)
+    text = re.sub(r'&#(\d+);', lambda m: chr(int(m.group(1))), text)
+
+    # Luego usar html.unescape para el resto (&amp;, &lt;, &gt;, &quot;, etc.)
+    text = html_mod.unescape(text)
+
+    return text
+
+
+def clean_text(text: str) -> str:
+    """Limpia un texto completo de noticia aplicando todos los filtros.
+
+    Realiza las siguientes operaciones en orden:
+    1. Decodifica entidades HTML
+    2. Divide en parrafos
+    3. Aplica filtros de descarte y limpieza
+    4. Reconstruye el texto limpio
+
+    Args:
+        text: Texto completo de la noticia
+
+    Returns:
+        Texto limpio (max 3 parrafos)
+    """
+    if not text:
+        return ""
+
+    # 1. Decodificar entidades HTML
+    text = decode_html_entities(text)
+
+    # 2. Dividir en parrafos
+    paragraphs = [p.strip() for p in re.split(r'
+\s*
+', text) if p.strip()]
+
+    # 3. Aplicar filtros
+    clean = apply_filters(paragraphs)
+
+    # 4. Reunir en texto plano
+    return "
+
+".join(clean)
 
 
 def apply_filters(paragraphs: list[str]) -> list[str]:
