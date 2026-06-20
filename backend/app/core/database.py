@@ -5,6 +5,7 @@ y configura SSL via connect_args.
 """
 from __future__ import annotations
 
+import logging
 import ssl
 from urllib.parse import urlparse, urlunparse
 
@@ -12,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_asyncpg_url(url: str) -> str:
@@ -74,3 +77,25 @@ async def get_session() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Ejecutar migraciones SQL adicionales (raw)
+    from pathlib import Path
+
+    migrations_dir = Path(__file__).parent.parent.parent.parent / "database" / "migrations"
+    if not migrations_dir.exists():
+        return
+
+    from sqlalchemy import text
+
+    for sql_file in sorted(migrations_dir.glob("*.sql")):
+        sql_text = sql_file.read_text().strip()
+        if not sql_text:
+            continue
+        logger.info("Ejecutando migracion: %s", sql_file.name)
+        # Dividir en statements individuales por punto y coma
+        for stmt in sql_text.split(";"):
+            stmt = stmt.strip()
+            if not stmt or stmt.startswith("--"):
+                continue
+            async with engine.begin() as conn:
+                await conn.execute(text(stmt))
