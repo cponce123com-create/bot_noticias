@@ -14,11 +14,9 @@
 ## Fase 3: Resiliencia (Completado)
 - [x] Backoff exponencial en scraping HTTP (max 3 intentos, espera 2^n segundos)
 - [x] Rate limiting con slowapi (30 req/min default)
-- [x] Endpoint `/metrics` con psutil para monitoreo basico
 
 ## Fase 4: Docker (Completado)
 - [x] Dockerfile multi-stage (builder + runtime)
-- [x] Dockerfile.prod con `BUILD_AI` arg para instalar o no dependencias AI
 - [x] Dependencias AI opcionales (`pip install .[ai]`)
 - [x] `httpx` duplicado eliminado de pyproject.toml
 - [x] Nuevas dependencias: `tenacity`, `slowapi`, `psutil`
@@ -27,6 +25,17 @@
 ## Fase 5: Logs (Completado)
 - [x] `exc_info=True` agregado en bloques except clave
 - [x] Este archivo `TASKS.md`
+
+## Auditoria de Seguridad - Pendientes
+
+- [ ] Rotar SECRET_KEY en produccion (actualmente en env de Render)
+- [ ] Rotar ADMIN_PASSWORD en produccion
+- [ ] Verificar que TELEGRAM_BOT_TOKEN este solo como `sync: false` en Render (ya no hardcodeado)
+- [ ] Verificar que CLOUDINARY_* credenciales esten solo como `sync: false` (ya no hardcodeadas en codigo)
+- [ ] Agregar rate limiting por IP en login endpoint
+- [ ] Implementar refresh tokens para sesiones JWT de larga duracion
+- [ ] Auditoria de logs de acceso (quien aprueba/rechaza noticias)
+- [ ] Migrar a variables de entorno en Render dashboard para TELEGRAM_ADMIN_ID (ya no hardcodeado)
 
 ## Variables de Entorno NUEVAS en Render:
 

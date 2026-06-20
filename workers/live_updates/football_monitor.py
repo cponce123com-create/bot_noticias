@@ -126,7 +126,7 @@ async def check_live_matches() -> None:
 
             # Usar hash del match_name como fixture_id (entero de 8 posiciones para PK)
             import hashlib
-            fixture_id = int(hashlib.sha256(match_name.encode()).hexdigest()[:8], 16)
+            fixture_id = int(hashlib.sha256(match_name.encode()).hexdigest()[:7], 16)
 
             # Detectar si hay GOL NUEVO
             last_home, last_away = last_state.get(fixture_id, (-1, -1))

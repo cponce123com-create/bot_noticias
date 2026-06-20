@@ -239,6 +239,82 @@ class TelegramPublisher:
 
     @staticmethod
     def _escape_md(text: str) -> str:
-        for ch in r"_*[]()~`>#+-=|{}.!":
-            text = text.replace(ch, f"\{ch}")
+        for ch in r"\_*[]()~`>#+-=|{}.!":
+            text = text.replace(ch, f"\\{ch}")
         return text
+
+
+async def publish_single_news(news) -> None:
+    """Publica una noticia a TODOS los canales activos.
+
+    Esta funcion es la interfaz unificada que usan tanto el panel admin
+    como los workers para publicar. Consulta los canales activos desde
+    la tabla telegram_channels.
+
+    Args:
+        news: Una instancia del modelo News (debe tener title/original_title,
+              summary/original_summary, url, author, images, videos)
+    """
+    from sqlalchemy import select
+    from backend.app.core.database import async_session_factory
+    from backend.app.models.telegram_channel import TelegramChannel
+
+    token = __import__('backend.app.config', fromlist=['settings']).settings.telegram_bot_token
+    if not token:
+        __import__('logging').getLogger(__name__).warning("TELEGRAM_BOT_TOKEN no configurado")
+        return
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(TelegramChannel).where(TelegramChannel.is_active == True)
+        )
+        channels = result.scalars().all()
+
+    if not channels:
+        __import__('logging').getLogger(__name__).info("No hay canales activos")
+        return
+
+    publisher = TelegramPublisher()
+
+    title = news.title or news.original_title or "Sin titulo"
+    summary = news.summary or news.original_summary or ""
+    url = news.url or ""
+    author = news.author or ""
+
+    # Construir category_slug desde la relacion si existe
+    cat_slug = ""
+    if hasattr(news, 'category') and news.category:
+        cat_slug = news.category.slug if hasattr(news.category, 'slug') else ""
+    elif news.category_id:
+        cat_slug = str(news.category_id)
+
+    # Obtener hashtags
+    hashtags = list(news.hashtags or [])
+    if not hashtags:
+        hashtags = ["Noticias"]
+
+    payload = PublicationPayload(
+        title=title,
+        summary=summary[:300],
+        url=url,
+        hashtags=hashtags[:5],
+        category_slug=cat_slug,
+        published_at=news.published_at,
+        author=author,
+        images=list(news.images or []),
+        videos=list(news.videos or []),
+    )
+
+    for channel in channels:
+        try:
+            chat_id = channel.chat_id
+            if payload.videos:
+                await publisher.publish_with_video(chat_id=chat_id, payload=payload)
+            elif payload.images:
+                await publisher.publish_with_image(chat_id=chat_id, payload=payload)
+            else:
+                await publisher.publish_text_only(chat_id=chat_id, payload=payload)
+        except Exception as e:
+            __import__('logging').getLogger(__name__).error(
+                "Error publicando en canal %s: %s", channel.channel_name or channel.chat_id, e
+            )

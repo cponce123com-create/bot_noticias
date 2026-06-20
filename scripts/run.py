@@ -33,7 +33,8 @@ logger = logging.getLogger("runner")
 
 from backend.app.config import settings
 DSN = settings.database_url_sync
-ADMIN_CHAT_ID = None  # Configurar via settings o env
+# Leer desde configuracion del sistema o env
+ADMIN_CHAT_ID = None  # se obtiene en tiempo real desde settings.telegram_admin_id
 
 # ── Categorias por keywords ─────────────────────────────────────────────────
 CATEGORY_KEYWORDS: Dict[str, List[str]] = {
@@ -295,22 +296,29 @@ def dedup_and_insert(conn, source_id: uuid.UUID, items: List[Dict], source_name:
     return new_items
 
 
-async def publish_news(news_items: List[Dict], source_name: str, chat_id: int = ADMIN_CHAT_ID) -> int:
-    """Publica una lista de noticias en Telegram."""
+async def publish_news(news_items: List[Dict], source_name: str) -> int:
+    """Publica una lista de noticias en Telegram a TODOS los canales activos."""
     if not news_items:
         return 0
-
-    from backend.app.config import settings
-    # Token cargado desde variable de entorno por settings
-    settings.cloudinary_cloud_name = "dicudg2ok"
-    settings.cloudinary_api_key = "528278259254476"
-    settings.cloudinary_api_secret = "t_XiSjyrWLXUavZ5KjoorhxAs-8"
-    settings.telegram_admin_id = str(ADMIN_CHAT_ID)
 
     from workers.publishers.telegram_publisher import TelegramPublisher, PublicationPayload
 
     pub = TelegramPublisher()
     await pub._get_bot()
+
+    # Obtener canales activos desde la BD
+    conn = psycopg2.connect(DSN)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT chat_id, channel_name FROM telegram_channels WHERE is_active = TRUE"
+    )
+    channels = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    if not channels:
+        logger.warning("No hay canales activos para publicar")
+        return 0
 
     published = 0
     for item in news_items:
@@ -325,16 +333,17 @@ async def publish_news(news_items: List[Dict], source_name: str, chat_id: int = 
             images=item.get("images", []),
         )
 
-        try:
-            if item.get("images"):
-                msg_id = await pub.publish_with_image(chat_id=chat_id, payload=payload)
-            else:
-                msg_id = await pub.publish_text_only(chat_id=chat_id, payload=payload)
+        for chat_id, channel_name in channels:
+            try:
+                if item.get("images"):
+                    msg_id = await pub.publish_with_image(chat_id=chat_id, payload=payload)
+                else:
+                    msg_id = await pub.publish_text_only(chat_id=chat_id, payload=payload)
 
-            if msg_id:
-                published += 1
-        except Exception as exc:
-            logger.warning("  Error publicando: %s", exc)
+                if msg_id:
+                    published += 1
+            except Exception as exc:
+                logger.warning("  Error publicando en canal %s: %s", channel_name or chat_id, exc)
 
     return published
 

@@ -88,6 +88,14 @@ def get_cleanup_patterns() -> list[tuple[re.Pattern, str]]:
     return result
 
 
+def _safe_chr(code_point: int) -> str:
+    """Convierte un code point a caracter, seguro contra valores invalidos."""
+    try:
+        return chr(code_point)
+    except (ValueError, OverflowError):
+        return ""
+
+
 def decode_html_entities(text: str) -> str:
     """Decodifica entidades HTML del texto.
 
@@ -97,8 +105,8 @@ def decode_html_entities(text: str) -> str:
         return text
 
     # Decodificar entidades numericas hex y decimal
-    text = re.sub(r'&#x([0-9a-fA-F]+);', lambda m: chr(int(m.group(1), 16)), text)
-    text = re.sub(r'&#(\d+);', lambda m: chr(int(m.group(1))), text)
+    text = re.sub(r'&#x([0-9a-fA-F]+);', lambda m: _safe_chr(int(m.group(1), 16)), text)
+    text = re.sub(r'&#(\d+);', lambda m: _safe_chr(int(m.group(1))), text)
 
     # Usar html.unescape para el resto (&amp;, &lt;, &gt;, &quot;, etc.)
     text = html_mod.unescape(text)

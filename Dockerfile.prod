@@ -12,8 +12,8 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system deps
-RUN apt-get update && apt-get install -y --no-install-recommends 
-    build-essential libpq-dev curl nginx 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl nginx \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
@@ -32,30 +32,44 @@ COPY scripts/ scripts/
 COPY --from=frontend-builder /app/dist /app/frontend/dist
 
 # Nginx config to serve frontend + proxy API
-RUN echo 'server { 
-    listen $PORT; 
-    server_name _; 
-    
-    location /api/ { 
-        proxy_pass http://127.0.0.1:8000; 
-        proxy_set_header Host $host; 
-        proxy_set_header X-Real-IP $remote_addr; 
-    } 
-    
-    location /health { 
-        proxy_pass http://127.0.0.1:8000; 
-    } 
-    
-    location / { 
-        root /app/frontend/dist; 
-        index index.html; 
-        try_files $uri $uri/ /index.html; 
-    } 
-}' > /etc/nginx/sites-enabled/default
+RUN echo 'pid /tmp/nginx.pid;
+error_log /app/nginx-error.log;
+events {
+    worker_connections 1024;
+}
+http {
+    client_body_temp_path /tmp/client_body;
+    proxy_temp_path /tmp/proxy_temp;
+    fastcgi_temp_path /tmp/fastcgi_temp;
+    uwsgi_temp_path /tmp/uwsgi_temp;
+    scgi_temp_path /tmp/scgi_temp;
+    access_log /app/nginx-access.log;
+    error_log /app/nginx-error.log;
+    server { 
+        listen $PORT; 
+        server_name _; 
+        
+        location /api/ { 
+            proxy_pass http://127.0.0.1:8000; 
+            proxy_set_header Host $host; 
+            proxy_set_header X-Real-IP $remote_addr; 
+        } 
+        
+        location /health { 
+            proxy_pass http://127.0.0.1:8000; 
+        } 
+        
+        location / { 
+            root /app/frontend/dist; 
+            index index.html; 
+            try_files $uri $uri/ /index.html; 
+        } 
+    }
+}' > /etc/nginx/nginx.conf
 
 RUN mkdir -p media/images media/videos
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
 RUN adduser --disabled-password --gecos "" appuser && chown -R appuser:appuser /app /etc/nginx

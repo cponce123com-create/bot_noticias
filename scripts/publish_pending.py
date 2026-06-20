@@ -21,10 +21,6 @@ ADMIN_CHAT_ID = 6922534707
 
 async def publish():
     from backend.app.config import settings
-    settings.telegram_bot_token = "8807852904:AAHLeIw0tJXqBSOFEoLrr3PFDF99UrdGs-E"
-    settings.cloudinary_cloud_name = "dicudg2ok"
-    settings.cloudinary_api_key = "528278259254476"
-    settings.cloudinary_api_secret = "t_XiSjyrWLXUavZ5KjoorhxAs-8"
 
     from workers.publishers.telegram_publisher import TelegramPublisher, PublicationPayload
 

@@ -37,7 +37,8 @@ async def _resolve_chat_id(raw: str) -> int:
         try:
             import httpx
             url = f"https://api.telegram.org/bot{token}/getChat"
-            resp = httpx.post(url, json={"chat_id": f"@{username}"}, timeout=10)
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, json={"chat_id": f"@{username}"}, timeout=10)
             data = resp.json()
             if not data.get("ok"):
                 error_desc = data.get("description", "error desconocido")
@@ -107,7 +108,7 @@ async def create_telegram_channel(
 async def delete_telegram_channel(
     channel_id: int,
     session: AsyncSession = Depends(get_session),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_admin_user),
 ):
     channel = await session.get(TelegramChannel, channel_id)
     if not channel:

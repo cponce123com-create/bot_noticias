@@ -96,7 +96,7 @@ async def approve_news(
     news_id: uuid.UUID,
     data: Optional[NewsApproveRequest] = None,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     news = await session.get(News, news_id)
     if not news:
@@ -136,7 +136,8 @@ async def approve_news(
     if action in ("approve", "edit"):
         try:
             logger.info("Publicando noticia %s en Telegram...", news.id)
-            await _publish_to_telegram(news)
+            from workers.publishers.telegram_publisher import publish_single_news
+            await publish_single_news(news)
             news.status = "published"
             await session.flush()
             logger.info("Publicacion completada para noticia %s", news.id)
@@ -150,7 +151,7 @@ async def approve_news(
 @router.post("/approve-all")
 async def approve_all_news(
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     """Aprueba todas las noticias pendientes en una sola operacion."""
     result = await session.execute(
