@@ -90,7 +90,10 @@ async def login(
         secure=True,
     )
 
-    return TokenResponse(user=UserResponse.model_validate(user))
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post("/logout")
