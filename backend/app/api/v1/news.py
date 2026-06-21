@@ -165,6 +165,7 @@ async def approve_news(
                 await publish_to_epm([{
                     "title": news.title or news.original_title,
                     "summary": news.summary or news.original_summary,
+                    "body": news.body or news.original_body,
                     "url": news.url,
                     "author": news.author,
                     "source_name": source_name,

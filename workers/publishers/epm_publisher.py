@@ -11,6 +11,8 @@ import hashlib
 import hmac
 import json
 import logging
+import re
+import unicodedata
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -118,15 +120,29 @@ class EPMPublisher:
         if isinstance(pub_date, datetime):
             pub_date = pub_date.isoformat()
 
+        title = (item.get("title") or item.get("original_title") or "Sin título")[:500]
+        slug = self._make_slug(title)
+
         return {
-            "title": (item.get("title") or item.get("original_title") or "")[:500],
+            "title": title,
             "link": (item.get("url") or "")[:1024],
             "source": (item.get("source_name") or item.get("author") or "Noticiando.pe")[:255],
             "summary": (item.get("summary") or item.get("original_summary") or "")[:500],
+            "content": (item.get("body") or item.get("original_body") or "")[:50000],
             "pub_date": pub_date,
             "image_url": self._get_best_image(item) or "",
+            "slug": slug,
             "category": (item.get("category_name") or "")[:100],
         }
+
+    def _make_slug(self, title: str) -> str:
+        """Genera un slug SEO-friendly a partir del titulo."""
+        slug = title.lower().strip()
+        slug = unicodedata.normalize("NFKD", slug)
+        slug = slug.encode("ascii", "ignore").decode("ascii")
+        slug = re.sub(r"[^a-z0-9]+", "-", slug)
+        slug = slug.strip("-")
+        return slug[:100] or "noticia"
 
     def _get_best_image(self, item: Dict[str, Any]) -> Optional[str]:
         images = item.get("images") or []

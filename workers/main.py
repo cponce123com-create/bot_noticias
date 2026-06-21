@@ -456,6 +456,14 @@ async def publish_pending():
                 epm_items = []
                 for row in news_list:
                     nid, ttl, ot, sm, osm, u, a, imgs, sid = row
+                    # Obtener body y source_name
+                    body_result = await session.execute(
+                        text("SELECT body, original_body FROM news WHERE id = :id"), {"id": nid}
+                    )
+                    body_row = body_result.fetchone()
+                    body = body_row[0] if body_row else None
+                    orig_body = body_row[1] if body_row else None
+
                     src_result = await session.execute(
                         text("SELECT name FROM sources WHERE id = :id"), {"id": sid}
                     )
@@ -467,6 +475,7 @@ async def publish_pending():
                         "original_title": ot,
                         "summary": sm or osm,
                         "original_summary": osm,
+                        "body": body or orig_body,
                         "url": u,
                         "author": a,
                         "source_name": source_name,
