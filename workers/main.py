@@ -424,6 +424,64 @@ async def publish_pending():
                 {"id": news_id}
             )
 
+            # ── Facebook ──
+            if settings.facebook_page_id and settings.facebook_page_token:
+                try:
+                    from workers.publishers.facebook_publisher import publish_single_news_facebook
+                    # Necesitamos un objeto News-like para la función. Creamos un SimpleNamespace.
+                    from types import SimpleNamespace
+                    news_obj = SimpleNamespace(
+                        id=news_id,
+                        title=title,
+                        original_title=orig_title,
+                        summary=summary,
+                        original_summary=orig_summary,
+                        url=url,
+                        author=author,
+                        hashtags=None,
+                        images=images_json if isinstance(images_json, list) else [],
+                        published_at=None,
+                    )
+                    fb_post_id = await publish_single_news_facebook(news_obj)
+                    if fb_post_id:
+                        logger.info("Publicado news %s en Facebook: %s", news_id, fb_post_id)
+                except Exception as e:
+                    logger.error("Error publicando news %s en Facebook: %s", news_id, e)
+
+        # ── EPM: enviar lote completo al final ──
+        if settings.epm_enabled and settings.epm_api_url and news_list:
+            try:
+                from workers.publishers.epm_publisher import publish_to_epm
+
+                epm_items = []
+                for row in news_list:
+                    nid, ttl, ot, sm, osm, u, a, imgs, sid = row
+                    src_result = await session.execute(
+                        text("SELECT name FROM sources WHERE id = :id"), {"id": sid}
+                    )
+                    src_row = src_result.fetchone()
+                    source_name = src_row[0] if src_row else None
+
+                    epm_items.append({
+                        "title": ttl or ot,
+                        "original_title": ot,
+                        "summary": sm or osm,
+                        "original_summary": osm,
+                        "url": u,
+                        "author": a,
+                        "source_name": source_name,
+                        "images": imgs if isinstance(imgs, list) else [],
+                        "published_at": None,
+                    })
+
+                epm_result = await publish_to_epm(epm_items)
+                logger.info("EPM: %d enviadas, %d omitidas, %d errores",
+                            epm_result.get("sent", 0),
+                            epm_result.get("skipped", 0),
+                            epm_result.get("errors", 0))
+            except Exception as e:
+                logger.error("Error enviando lote a EPM: %s", e)
+
         await session.commit()
 
 

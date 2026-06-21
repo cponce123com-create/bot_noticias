@@ -13,6 +13,7 @@ from backend.app.core.database import get_session
 from backend.app.core.security import get_admin_user, get_current_user
 from backend.app.models.news import News
 from backend.app.models.user import User
+from backend.app.config import settings
 from backend.app.schemas.news import (
     NewsApproveRequest,
     NewsListResponse,
@@ -144,6 +145,36 @@ async def approve_news(
         except Exception as e:
             logger.error("Error publicando noticia %s en Telegram: %s", news.id, e, exc_info=True)
             # Status queda como approved, publish_pending reintentara
+
+        # ── Facebook ──
+        if settings.facebook_page_id and settings.facebook_page_token:
+            try:
+                from workers.publishers.facebook_publisher import publish_single_news_facebook
+                fb_post_id = await publish_single_news_facebook(news)
+                if fb_post_id:
+                    logger.info("Publicado en Facebook: %s", fb_post_id)
+            except Exception as e:
+                logger.error("Error publicando en Facebook: %s", e, exc_info=True)
+
+        # ── EPM ──
+        if settings.epm_enabled and settings.epm_api_url:
+            try:
+                from workers.publishers.epm_publisher import publish_to_epm
+                source_name = news.source.name if news.source else None
+                category_name = news.category.name if news.category else None
+                await publish_to_epm([{
+                    "title": news.title or news.original_title,
+                    "summary": news.summary or news.original_summary,
+                    "url": news.url,
+                    "author": news.author,
+                    "source_name": source_name,
+                    "images": list(news.images or []),
+                    "category_name": category_name,
+                    "published_at": news.published_at.isoformat() if news.published_at else None,
+                }])
+                logger.info("Enviado a EPM: %s", news.id)
+            except Exception as e:
+                logger.error("Error enviando a EPM: %s", e)
 
     return news
 

@@ -126,6 +126,15 @@ async def lifespan(app: FastAPI):
                 logger.info("Job morning_briefing agregado (c/1h)")
             except Exception as e:
                 logger.debug("No se pudo agregar morning_briefing: %s", e)
+
+            # ── Facebook token refresh (c/45 días) ──
+            if settings.facebook_page_id and settings.facebook_page_token:
+                try:
+                    from workers.publishers.facebook_publisher import refresh_facebook_token
+                    scheduler.add_job(refresh_facebook_token, "interval", days=45, id="facebook_token_refresh")
+                    logger.info("Job facebook_token_refresh agregado (c/45d)")
+                except Exception as e:
+                    logger.debug("No se pudo agregar facebook_token_refresh: %s", e)
         except Exception as e:
             logger.warning("No se pudo iniciar scheduler: %s", e)
     else:

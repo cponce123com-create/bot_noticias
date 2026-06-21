@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    # ── Facebook Page ──
+    facebook_page_id: str = ""
+    facebook_page_token: str = ""
+    facebook_app_id: str = ""
+    facebook_app_secret: str = ""
+
+    # ── EPM (El Príncipe Mestizo) ──
+    epm_api_url: str = ""
+    epm_api_key: str = ""
+    epm_enabled: bool = False
+
     # ── Hugging Face ──
     hf_api_token: str = ""
 
