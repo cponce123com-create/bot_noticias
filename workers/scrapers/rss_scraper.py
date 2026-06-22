@@ -275,7 +275,7 @@ class RssScraper(AsyncScraper):
         for mc in media_content:
             if isinstance(mc, dict):
                 url = mc.get("url", "")
-                if url and url not in seen_urls and self._is_image_url(url):
+                if url and url not in seen_urls and self._is_image_url(url, mc.get("type", "")):
                     seen_urls.add(url)
                     images.append({
                         "url": url,
@@ -393,12 +393,38 @@ class RssScraper(AsyncScraper):
         return tags[:10]
 
     @staticmethod
-    def _is_image_url(url: str) -> bool:
-        """Verifica si una URL parece ser de una imagen por extension."""
+    def _is_image_url(url: str, mime_type: str = "") -> bool:
+        """Verifica si una URL parece ser de una imagen.
+
+        Acepta URLs que:
+        - Tengan extension de imagen (.jpg, .png, etc.)
+        - Tengan MIME type image/* (desde Media RSS)
+        - Contengan palabras clave como 'foto', 'imagen', 'media' en la ruta
+        """
+        # Si ya tenemos un MIME type, confiar en el
+        if mime_type and mime_type.startswith("image/"):
+            return True
+
         parsed = urlparse(url)
         path = parsed.path.lower()
+
+        # Extension de archivo
         image_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg")
-        return any(path.endswith(ext) for ext in image_exts)
+        if any(path.endswith(ext) for ext in image_exts):
+            return True
+
+        # Palabras clave en la URL que indican imagen
+        image_keywords = ("/foto", "/imagen", "/image", "/media", "/resizer",
+                         "/storage", "/uploads", "/content", "/pics")
+        if any(kw in path for kw in image_keywords):
+            return True
+
+        # Query params con indicios de imagen
+        query = parsed.query.lower()
+        if "image" in query or "img" in query or "foto" in query or "media" in query:
+            return True
+
+        return False
 
     @staticmethod
     def _extract_first_image_from_html(html: str) -> Optional[str]:
