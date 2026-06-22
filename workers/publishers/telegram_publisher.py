@@ -269,7 +269,10 @@ async def publish_single_news(news) -> None:
 
     async with async_session_factory() as session:
         result = await session.execute(
-            select(TelegramChannel).where(TelegramChannel.is_active == True)
+            select(TelegramChannel).where(
+                TelegramChannel.is_active == True,
+                TelegramChannel.channel_type == "channel",
+            )
         )
         channels = result.scalars().all()
 

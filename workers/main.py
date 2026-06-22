@@ -322,9 +322,12 @@ async def publish_pending():
     async with async_session_factory() as session:
         from sqlalchemy import select as sql_select
 
-        # Obtener canales activos
+        # Obtener canales activos (solo type='channel', no grupos de discusion)
         channels_result = await session.execute(
-            sql_select(TelegramChannel).where(TelegramChannel.is_active == True)
+            sql_select(TelegramChannel).where(
+                TelegramChannel.is_active == True,
+                TelegramChannel.channel_type == "channel",
+            )
         )
         channels = channels_result.scalars().all()
         if not channels:
