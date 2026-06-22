@@ -123,17 +123,46 @@ class EPMPublisher:
         title = (item.get("title") or item.get("original_title") or "Sin título")[:500]
         slug = self._make_slug(title)
 
+        # Summary: priorizar summary, luego original_summary
+        summary = (item.get("summary") or item.get("original_summary") or "")[:1000]
+
+        # Content: priorizar body/original_body, fallback a original_summary completo
+        content = (
+            item.get("body")
+            or item.get("original_body")
+            or item.get("original_summary")
+            or ""
+        )[:50000]
+
+        # Image: priorizar images[0].url, fallback a extraer <img> del summary HTML
+        image_url = self._get_best_image(item) or self._extract_image_from_text(
+            item.get("summary") or item.get("original_summary") or ""
+        ) or ""
+
         return {
             "title": title,
             "link": (item.get("url") or "")[:1024],
             "source": (item.get("source_name") or item.get("author") or "Noticiando.pe")[:255],
-            "summary": (item.get("summary") or item.get("original_summary") or "")[:500],
-            "content": (item.get("body") or item.get("original_body") or "")[:50000],
+            "summary": summary,
+            "content": content,
             "pub_date": pub_date,
-            "image_url": self._get_best_image(item) or "",
+            "image_url": image_url,
             "slug": slug,
             "category": (item.get("category_name") or "")[:100],
         }
+
+    @staticmethod
+    def _extract_image_from_text(text: str) -> Optional[str]:
+        """Extrae la primera URL de imagen desde texto HTML."""
+        if not text:
+            return None
+        import re
+        match = re.search(r'<img[^>]+src=[\"\'](https?://[^\"\']+)[\"\']', text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        # Fallback: buscar URLs de imagen directas en el texto
+        match = re.search(r'(https?://[^\\s\"\']+\.(?:jpg|jpeg|png|gif|webp)(?:\\?[^\\s\"\']*)?)', text, re.IGNORECASE)
+        return match.group(1) if match else None
 
     def _make_slug(self, title: str) -> str:
         """Genera un slug SEO-friendly a partir del titulo."""

@@ -202,8 +202,7 @@ def _fetch_article(url: str) -> dict:
     if paragraphs:
         # Limpiar parrafos: eliminar promos, hashtags, redes sociales
         clean = _clean_paragraphs(paragraphs)
-        # Limitar a 3 parrafos limpios
-        result["full_text"] = "\n\n".join(clean[:3])
+        result["full_text"] = "\n\n".join(clean)
 
     # 2. Extraer imagen principal (og:image > primera img en pagina)
     og_image = sel.css("meta[property='og:image']")

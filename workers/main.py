@@ -253,7 +253,8 @@ async def process_source(source_id: uuid.UUID):
                         params: dict[str, Any] = {"id": item["external_id"]}
                         if enriched["full_text"]:
                             update_parts.append("original_summary = :full_text")
-                            params["full_text"] = enriched["full_text"][:2000]
+                            update_parts.append("original_body = :full_text")
+                            params["full_text"] = enriched["full_text"][:5000]
                         if enriched["image_url"]:
                             update_parts.append("images = :images")
                             params["images"] = json.dumps([{"url": enriched["image_url"], "type": "image/jpeg", "medium": "image"}])
