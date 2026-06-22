@@ -100,11 +100,12 @@ async def lifespan(app: FastAPI):
     if settings.enable_scheduler:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
-            from workers.main import publish_pending, scrape_all_sources
+            from workers.main import publish_pending, scrape_all_sources, cleanup_old_news
 
             scheduler = AsyncIOScheduler()
             scheduler.add_job(scrape_all_sources, "interval", minutes=5, id="scrape_sources")
             scheduler.add_job(publish_pending, "interval", minutes=2, id="publish_news")
+            scheduler.add_job(cleanup_old_news, "interval", hours=24, id="cleanup_old_news")
             scheduler.start()
             logger.info("Scheduler iniciado: scrape_sources(5min), publish_news(2min)")
 

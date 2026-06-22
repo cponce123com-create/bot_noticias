@@ -508,6 +508,66 @@ async def publish_pending():
         await session.commit()
 
 
+async def cleanup_old_news():
+    """Elimina noticias antiguas para mantener el tamaño de DB controlado.
+
+    Lee el periodo de retencion desde system_config (key: news_retention_days),
+    default 30 dias. Solo elimina noticias con status 'published' o 'rejected'.
+    Las noticias pendientes/aprobadas no se tocan.
+    """
+    async with async_session_factory() as session:
+        # Leer retencion desde system_config
+        cfg = await session.execute(
+            text("SELECT value FROM system_config WHERE key = 'news_retention_days'")
+        )
+        row = cfg.fetchone()
+        try:
+            retention_days = int(row[0]) if row else 30
+        except (ValueError, TypeError):
+            retention_days = 30
+
+        # Contar antes
+        count_result = await session.execute(
+            text("""
+                SELECT COUNT(*) FROM news
+                WHERE created_at < NOW() - (:days || ' days')::INTERVAL
+                  AND status IN ('published', 'rejected')
+            """),
+            {"days": retention_days},
+        )
+        total_to_delete = count_result.scalar() or 0
+        if total_to_delete == 0:
+            logger.info("Cleanup: no hay noticias antiguas que eliminar (retencion: %d dias)", retention_days)
+            return
+
+        # Eliminar en lotes para no bloquear
+        deleted = 0
+        while True:
+            result = await session.execute(
+                text("""
+                    DELETE FROM news
+                    WHERE id IN (
+                        SELECT id FROM news
+                        WHERE created_at < NOW() - (:days || ' days')::INTERVAL
+                          AND status IN ('published', 'rejected')
+                        LIMIT 500
+                    )
+                """),
+                {"days": retention_days},
+            )
+            batch = result.rowcount
+            if batch == 0:
+                break
+            deleted += batch
+            await session.commit()
+            logger.info("Cleanup: %d noticias eliminadas (lote de %d)", deleted, batch)
+
+        logger.info(
+            "Cleanup completado: %d noticias eliminadas (retencion: %d dias)",
+            deleted, retention_days,
+        )
+
+
 def get_scheduler() -> AsyncIOScheduler:
     """Crea un scheduler con SQLAlchemyJobStore para persistencia."""
     from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
