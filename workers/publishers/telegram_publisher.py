@@ -251,6 +251,10 @@ async def publish_single_news(news) -> None:
     como los workers para publicar. Consulta los canales activos desde
     la tabla telegram_channels.
 
+    Raises:
+        ValueError: Si TELEGRAM_BOT_TOKEN no esta configurado o no hay canales activos.
+        RuntimeError: Si ningun canal recibio el mensaje exitosamente.
+
     Args:
         news: Una instancia del modelo News (debe tener title/original_title,
               summary/original_summary, url, author, images, videos)
@@ -261,8 +265,7 @@ async def publish_single_news(news) -> None:
 
     token = __import__('backend.app.config', fromlist=['settings']).settings.telegram_bot_token
     if not token:
-        __import__('logging').getLogger(__name__).warning("TELEGRAM_BOT_TOKEN no configurado")
-        return
+        raise ValueError("TELEGRAM_BOT_TOKEN no configurado — no se puede publicar")
 
     async with async_session_factory() as session:
         result = await session.execute(
@@ -271,8 +274,7 @@ async def publish_single_news(news) -> None:
         channels = result.scalars().all()
 
     if not channels:
-        __import__('logging').getLogger(__name__).info("No hay canales activos")
-        return
+        raise ValueError("No hay canales activos configurados — no se puede publicar")
 
     publisher = TelegramPublisher()
 
@@ -305,16 +307,34 @@ async def publish_single_news(news) -> None:
         videos=list(news.videos or []),
     )
 
+    published_count = 0
+    total_channels = len(channels)
     for channel in channels:
         try:
             chat_id = channel.chat_id
             if payload.videos:
-                await publisher.publish_with_video(chat_id=chat_id, payload=payload)
+                result_msg = await publisher.publish_with_video(chat_id=chat_id, payload=payload)
             elif payload.images:
-                await publisher.publish_with_image(chat_id=chat_id, payload=payload)
+                result_msg = await publisher.publish_with_image(chat_id=chat_id, payload=payload)
             else:
-                await publisher.publish_text_only(chat_id=chat_id, payload=payload)
+                result_msg = await publisher.publish_text_only(chat_id=chat_id, payload=payload)
+            if result_msg is not None:
+                published_count += 1
+            else:
+                __import__('logging').getLogger(__name__).warning(
+                    "Canal %s no confirmo la publicacion (result=None)",
+                    channel.channel_name or channel.chat_id,
+                )
         except Exception as e:
             __import__('logging').getLogger(__name__).error(
                 "Error publicando en canal %s: %s", channel.channel_name or channel.chat_id, e
             )
+
+    if published_count == 0:
+        raise RuntimeError(
+            f"No se pudo publicar en ningun canal ({total_channels} intentado(s))"
+        )
+    elif published_count < total_channels:
+        __import__('logging').getLogger(__name__).warning(
+            "Publicacion parcial: %d/%d canales exitosos", published_count, total_channels
+        )

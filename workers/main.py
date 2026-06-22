@@ -368,6 +368,7 @@ async def publish_pending():
                         first_image = img["url"]
                         break
 
+            any_success = False
             for ch in channels:
                 try:
                     if first_image:
@@ -384,6 +385,7 @@ async def publish_pending():
                         photo_data = photo_resp.json()
                         if photo_data.get("ok"):
                             resp = photo_resp
+                            any_success = True
                         else:
                             logger.warning(
                                 "Foto fallo para news %s (%s), enviando solo texto",
@@ -413,19 +415,27 @@ async def publish_pending():
                     data = resp.json()
                     if data.get("ok"):
                         logger.info("Publicado news %s en canal %s", news_id, ch.channel_name or ch.chat_id)
+                        any_success = True
                     else:
                         logger.warning("Error publicando news %s: %s", news_id, data.get("description"))
                 except Exception as e:
                     logger.error("Error publicando news %s: %s", news_id, e)
 
-            # Marcar como publicada
-            await session.execute(
-                text("UPDATE news SET status = 'published', published_at = NOW() WHERE id = :id"),
-                {"id": news_id}
-            )
+            # Marcar como publicada SOLO si al menos un canal recibio el mensaje
+            if any_success:
+                await session.execute(
+                    text("UPDATE news SET status = 'published', published_at = NOW() WHERE id = :id"),
+                    {"id": news_id}
+                )
+                logger.info("News %s marcada como publicada", news_id)
+            else:
+                logger.warning(
+                    "News %s no se pudo publicar en ningun canal — se reintentara en el proximo ciclo",
+                    news_id,
+                )
 
             # ── Facebook ──
-            if settings.facebook_page_id and settings.facebook_page_token:
+            if any_success and settings.facebook_page_id and settings.facebook_page_token:
                 try:
                     from workers.publishers.facebook_publisher import publish_single_news_facebook
                     # Necesitamos un objeto News-like para la función. Creamos un SimpleNamespace.

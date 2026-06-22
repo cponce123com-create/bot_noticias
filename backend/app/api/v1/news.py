@@ -199,7 +199,7 @@ async def approve_all_news(
 
     approved = 0
     for news in pending:
-        news.status = "published"
+        news.status = "approved"
         news.reviewed_by = current_user.id
         approved += 1
 
@@ -211,10 +211,19 @@ async def approve_all_news(
     background_tasks: set[asyncio.Task] = set()
 
     async def _publish_all():
+        from sqlalchemy import text
+        from backend.app.core.database import async_session_factory
         from workers.publishers.telegram_publisher import publish_single_news
         for news in pending:
             try:
                 await publish_single_news(news)
+                # Marcar como published SOLO si la publicacion fue exitosa
+                async with async_session_factory() as publish_session:
+                    await publish_session.execute(
+                        text("UPDATE news SET status = 'published' WHERE id = :id"),
+                        {"id": news.id},
+                    )
+                    await publish_session.commit()
             except Exception:
                 pass
 
