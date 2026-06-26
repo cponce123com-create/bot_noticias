@@ -167,9 +167,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Health check
+# Health check — también responder a HEAD para Uptime Robot
 @app.get("/health")
 async def health():
+    return {"status": "ok", "version": "0.1.0", "bot": "@noticiando_pe_bot"}
+
+
+@app.head("/health")
+async def health_head():
     return {"status": "ok", "version": "0.1.0", "bot": "@noticiando_pe_bot"}
 
 # API v1 - configure rate limiter
