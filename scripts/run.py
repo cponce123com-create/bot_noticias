@@ -214,7 +214,7 @@ def scrape_source(feed_url: str, max_items: int = 20) -> List[Dict[str, Any]]:
         # 4. img tag en summary HTML (fallback)
         if not images:
             summary_html = entry.get("summary", "") or ""
-            for m in re.finditer(r'<img[^>]+src=([\"\'])(https?://[^\"\']+)\1', summary_html):
+            for m in re.finditer(r'<img[^>]+src=(["\'])(https?://[^"\']+)\1', summary_html):
                 url = m.group(2).split("?")[0]
                 if url not in seen_urls:
                     seen_urls.add(url)
@@ -238,6 +238,13 @@ def scrape_source(feed_url: str, max_items: int = 20) -> List[Dict[str, Any]]:
 def dedup_and_insert(conn, source_id: uuid.UUID, items: List[Dict], source_name: str) -> List[Dict]:
     """Inserta items no duplicados y retorna los nuevos."""
     cur = conn.cursor()
+
+    # Leer auto_approve desde system_config
+    cur.execute("SELECT value FROM system_config WHERE key = 'auto_approve'")
+    cfg_row = cur.fetchone()
+    auto_approve = cfg_row and cfg_row[0] in (True, "true", "True", "1", "t")
+    status_value = "approved" if auto_approve else "pending_approval"
+
     new_items = []
 
     for item in items:
@@ -276,14 +283,14 @@ def dedup_and_insert(conn, source_id: uuid.UUID, items: List[Dict], source_name:
                                  category_id, hashtags, status)
                SELECT %s, %s, %s, %s, %s,
                       %s, %s, '', %s, %s::jsonb, 'es',
-                      c.id, %s::text[], 'pending_approval'
+                      c.id, %s::text[], %s
                FROM categories c WHERE c.slug = %s
                """,
             (
                 str(source_id), item["external_id"], item["url"],
                 item["title"], item["summary"],
                 title_clean, summary_clean, item["published"],
-                images_json, hashtags, cat_slug,
+                images_json, hashtags, status_value, cat_slug,
             ),
         )
         new_items.append({**item, "category_slug": cat_slug, "hashtags": hashtags})

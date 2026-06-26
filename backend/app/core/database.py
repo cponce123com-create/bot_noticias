@@ -78,7 +78,7 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Ejecutar migraciones SQL adicionales (raw)
+    # ---- Ejecutar migraciones SQL adicionales (raw) ----
     from pathlib import Path
 
     migrations_dir = Path(__file__).parent.parent.parent.parent / "database" / "migrations"
@@ -86,16 +86,26 @@ async def init_db():
         return
 
     from sqlalchemy import text
+    import re
 
     for sql_file in sorted(migrations_dir.glob("*.sql")):
         sql_text = sql_file.read_text().strip()
         if not sql_text:
             continue
         logger.info("Ejecutando migracion: %s", sql_file.name)
+
+        # Eliminar lineas de comentarios completas (-- ...) antes de dividir
+        cleaned = re.sub(r"^--.*$", "", sql_text, flags=re.MULTILINE)
         # Dividir en statements individuales por punto y coma
-        for stmt in sql_text.split(";"):
+        for stmt in cleaned.split(";"):
             stmt = stmt.strip()
-            if not stmt or stmt.startswith("--"):
+            if not stmt:
                 continue
             async with engine.begin() as conn:
-                await conn.execute(text(stmt))
+                try:
+                    await conn.execute(text(stmt))
+                except Exception as exc:
+                    logger.warning(
+                        "Statement fallo en %s: %.100s... — %s",
+                        sql_file.name, stmt.replace("\n", " ")[:100], exc,
+                    )
