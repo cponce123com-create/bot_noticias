@@ -53,8 +53,21 @@ class SourceResponse(BaseModel):
     requires_approval: bool
     created_at: datetime
     updated_at: datetime
+    status: str = "active"
 
     model_config = {"from_attributes": True}
+
+    @staticmethod
+    def _compute_status(is_active: bool, is_paused: bool) -> str:
+        if is_paused or not is_active:
+            return "paused"
+        return "active"
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        result = super().model_validate(obj, **kwargs)
+        result.status = cls._compute_status(obj.is_active, obj.is_paused)
+        return result
 
 
 class SourceListResponse(BaseModel):

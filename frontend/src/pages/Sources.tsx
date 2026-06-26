@@ -18,11 +18,11 @@ import Modal from '../components/Modal';
 interface Source {
   id: number;
   name: string;
-  type: string;
+  source_type: string;
   country: string;
   status: string;
   priority: number;
-  last_fetch_at: string;
+  last_fetched_at: string;
   language: string;
   config: Record<string, unknown>;
   fetch_interval: number;
@@ -108,7 +108,7 @@ export default function Sources() {
     setEditingSource(source);
     setForm({
       name: source.name,
-      type: source.type,
+      type: source.source_type,
       config: JSON.stringify(source.config, null, 2),
       country: source.country || '',
       language: source.language || 'es',
@@ -194,11 +194,11 @@ export default function Sources() {
       ),
     },
     {
-      key: 'type',
+      key: 'source_type',
       header: 'Tipo',
       render: (item: Source) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-accent-50 text-accent-700 uppercase">
-          {item.type}
+          {item.source_type}
         </span>
       ),
     },
@@ -227,10 +227,10 @@ export default function Sources() {
       ),
     },
     {
-      key: 'last_fetch_at',
+      key: 'last_fetched_at',
       header: 'Últ. obtención',
       render: (item: Source) =>
-        item.last_fetch_at ? formatDate(item.last_fetch_at) : 'Nunca',
+        item.last_fetched_at ? formatDate(item.last_fetched_at) : 'Nunca',
     },
     {
       key: 'actions',
