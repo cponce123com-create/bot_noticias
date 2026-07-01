@@ -36,7 +36,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: RENDER_EXTERNAL_URL
-        value: https://noticiando-pe-api.onrender.com
+        value: https://bot-noticias-dx2d.onrender.com
 
   # ── Cron Job (Keep Alive + Scraping cada 15 min) ──
   - type: cron
@@ -67,4 +67,6 @@ services:
         generateValue: true
       - key: LOG_LEVEL
         value: INFO
+      - key: RENDER_EXTERNAL_URL
+        value: https://bot-noticias-dx2d.onrender.com
 

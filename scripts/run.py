@@ -355,8 +355,22 @@ async def publish_news(news_items: List[Dict], source_name: str) -> int:
     return published
 
 
+
+
+def wake_up_service():
+    """Hace un GET a /health del web service para despertarlo (evitar suspension de Render)."""
+    url = settings.render_external_url.rstrip("/") + "/health"
+    try:
+        resp = httpx.get(url, timeout=30, follow_redirects=True)
+        logger.info("Keep-alive: %s -> %s", url, resp.status_code)
+    except Exception as exc:
+        logger.warning("Keep-alive fallo (posible cold-start): %s", exc)
+
 def run_all_sources(publish: bool = True) -> Dict[str, Any]:
     """Ejecuta el pipeline completo para todas las fuentes."""
+    # Despertar el web service antes de empezar
+    wake_up_service()
+
     start = time.time()
     sources = get_sources()
     logger.info("=" * 60)
